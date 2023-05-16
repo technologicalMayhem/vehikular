@@ -1,69 +1,71 @@
 pub struct Registration {
     // From registration A
-    pub issuer_state: String,
-    pub issuer_authority: String,
-    pub document_number: String,
-    pub registration_number: String,
-    pub date_of_first_registration: String,
+    pub issuer_state: String, // 9F33
+    pub issuer_authority: String, // 9F34
+    pub document_number: String, // 9F38
+    pub registration_number: String, // 71/81
+    pub date_of_first_registration: String, // 82
     pub personal_data: PersonalData,
     pub vehicle: Vehicle,
-    pub vehicle_identification_number: String,
+    pub vehicle_identification_number: String, // 8A
     pub mass: Mass,
-    pub vehicle_mass_with_body: String,
-    pub period_of_validity: String,
-    pub date_of_registration: String,
-    pub type_approval_number: String,
+    pub vehicle_mass_with_body: String, // 8C
+    pub period_of_validity: String, // 8D
+    pub date_of_registration: String, // 8E
+    pub type_approval_number: String, // 8F
     pub engine: Engine,
-    pub power_weight_ratio: String,
+    pub power_weight_ratio: String, // 93
     pub seating_capacity: SeatingCapacity,
     // From registration B
-    pub vechicle_category: String,
+    pub vechicle_category: String, // 98
     pub maximum_towable_mass: MaximumTowableMass,
-    pub colour: String,
-    pub maximum_speed: String,
+    pub colour: String, // 9F24
+    pub maximum_speed: String, // 25
     pub exhaust_emissions: ExhaustEmisions,
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct PersonalData {
     pub certificate_holder: CertificateHolder,
-    pub vehicles_owner: Option<bool>
+    pub vehicles_owner: Option<bool> // 86
 }
 
 pub struct CertificateHolder {
-    pub surname_or_business_name: String,
-    pub other_name_or_initials: String,
-    pub address: String,
+    pub surname_or_business_name: String, // 83
+    pub other_name_or_initials: String, // 84
+    pub address: String, // 85
 }
 
 pub struct Vehicle {
-    pub make: String,
-    pub vehicle_type: String,
-    pub commercial_descriptons: String,
+    pub make: String, // 87
+    pub vehicle_type: String, // 88
+    pub commercial_descriptons: String, // 89
 }
 
 pub struct Mass {
     // Registration A
-    pub max_permissiable_mass: String,
+    pub maximum_technically_permissible_laden_mass: String, // 8B
     // Registration B
-    pub max_whole_vehicle_permissable_mass: String,
+    pub maximum_permissible_laden_mass_of_the_vehicle_in_service: String, // 86
+    pub maximum_permissible_laden_mass_of_the_whole_vehicle_in_service: String, // 97
 }
 
 pub struct Engine {
-    pub capacity: String,
-    pub max_net_power: String,
-    pub fuel_type: String,
+    pub capacity: String, // 90
+    pub max_net_power: String, // 91
+    pub fuel_type: String, // 92
 }
 
 pub struct SeatingCapacity {
-    pub number_of_seats: String,
-    pub nunmber_of_standing_places: String,
+    pub number_of_seats: String, // 94
+    pub nunmber_of_standing_places: String, // 95
 }
 
 pub struct MaximumTowableMass {
-    pub braked: String,
-    pub unbraked: String,
+    pub braked: String, // 9B
+    pub unbraked: String, // 9C
 }
 
 pub struct ExhaustEmisions {
-    pub environmental_category: String,
+    pub environmental_category: String, // 9F31
 }
