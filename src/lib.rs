@@ -10,6 +10,7 @@ use crate::select_file::{select_file, File};
 pub static DEBUG: Mutex<bool> = Mutex::new(false);
 
 pub mod tlv;
+pub mod data;
 
 pub fn read_files(card: &Card, files: Vec<File>) {
     for file in files {
