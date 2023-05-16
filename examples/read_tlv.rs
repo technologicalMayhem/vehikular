@@ -1,34 +1,38 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs::read, path::PathBuf};
 
 use card_reader::data::{
     CertificateHolder, Engine, ExhaustEmisions, Mass, MaximumTowableMass, PersonalData,
     Registration, SeatingCapacity, Vehicle, VehicleOwner,
 };
+use clap::Parser;
 use color_eyre::Result;
 use iso7816_tlv::ber::{
     Tlv,
     Value::{Constructed, Primitive},
 };
 
+#[derive(Debug, Parser)]
+struct Arguments {
+    data_path: String,
+}
+
 fn main() -> Result<()> {
-    let reg_a = fs::read("RegistrationA.data")?;
-    let reg_b = fs::read("RegistrationB.data")?;
-    let reg_c = fs::read("RegistrationC.data")?;
+    let args = Arguments::parse();
+
+    let path = PathBuf::from(args.data_path);
+    let reg_a = read(path.join("RegistrationA.data"))?;
+    let reg_b = read(path.join("RegistrationB.data"))?;
+    let reg_c = read(path.join("RegistrationC.data"))?;
 
     let reg_a = Tlv::parse_all(&reg_a);
     let reg_b = Tlv::parse_all(&reg_b);
     let reg_c = Tlv::parse_all(&reg_c);
 
     let full_reg = [reg_a, reg_b, reg_c].concat();
-
     let hash_map = tlv_to_hash_map(&full_reg);
-
     let registration = hash_map_to_registration(&hash_map);
 
-    println!("{:#?}", hash_map.get("86"));
-
     println!("{registration:#?}");
-
     Ok(())
 }
 
