@@ -1,2 +1,2 @@
 [workspace]
-members = ["card_reader", "desktop-app", "web-app"]
+members = ["shared", "desktop-app", "web-app"]

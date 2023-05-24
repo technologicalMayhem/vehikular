@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs::read, path::PathBuf};
 
-use card_reader::data::{
+use shared::data::{
     CertificateHolder, Engine, ExhaustEmisions, Mass, MaximumTowableMass, PersonalData,
     Registration, SeatingCapacity, Vehicle, VehicleOwner,
 };

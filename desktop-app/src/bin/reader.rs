@@ -3,7 +3,7 @@ use std::env::args;
 use color_eyre::Result;
 use pcsc::{Context, Error, Protocols, Scope, ShareMode};
 
-use card_reader::{
+use desktop_app::{
     read_files, run_apdu, select_file::File, DEBUG, SELECT_EVRC_APPLICATION,
     SELECT_EVRC_APPLICATION_EXPECTED_RESPONSE,
 };

@@ -88,20 +88,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
-name = "card_reader"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "hex",
- "iso7816-tlv",
- "pcsc",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,12 +178,16 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 name = "desktop-app"
 version = "0.1.0"
 dependencies = [
- "card_reader",
+ "clap",
  "color-eyre",
  "hex",
+ "iso7816-tlv",
  "once_cell",
  "pcsc",
+ "serde",
  "serde_json",
+ "shared",
+ "thiserror",
 ]
 
 [[package]]
@@ -469,6 +459,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -584,6 +581,9 @@ checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 [[package]]
 name = "web-app"
 version = "0.1.0"
+dependencies = [
+ "shared",
+]
 
 [[package]]
 name = "windows-sys"
