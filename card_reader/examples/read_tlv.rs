@@ -32,7 +32,9 @@ fn main() -> Result<()> {
     let hash_map = tlv_to_hash_map(&full_reg);
     let registration = hash_map_to_registration(&hash_map);
 
-    println!("{registration:#?}");
+    let json = serde_json::to_string_pretty(&registration)?;
+
+    println!("{json}");
     Ok(())
 }
 
