@@ -1,6 +1,6 @@
-use std::error::Error;
+use std::{error::Error, io::Cursor};
 
-use rocket::{serde::json::Json, tokio::sync::Mutex, State, response::Responder};
+use rocket::{serde::json::Json, tokio::sync::Mutex, State, response::{Responder, self}, Request, http::ContentType, Response};
 use shared::data::Registration;
 use thiserror::Error;
 
@@ -53,6 +53,17 @@ async fn post_registration(registration: Json<Registration>, state: &State<Mutex
 enum RegistrationError {
     #[error("A registration with that registration number already exists.")]
     AlreadyExists
+}
+
+#[rocket::async_trait]
+impl<'r> Responder<'r, 'static> for RegistrationError {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
+        let s =self.to_string();
+        Response::build()
+            .header(ContentType::Plain)
+            .sized_body(s.len(), Cursor::new(s))
+            .ok()
+    }
 }
 
 #[launch]
