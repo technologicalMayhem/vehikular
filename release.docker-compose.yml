@@ -3,6 +3,6 @@ services:
   vehikular:
     build:
       context: .
-      target: debug
+      target: release
     ports:
       - 8000:8000

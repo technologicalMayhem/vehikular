@@ -1,8 +1,14 @@
-use std::{error::Error, io::Cursor};
+#![allow(clippy::no_effect_underscore_binding)]
+use std::io::Cursor;
 
-use rocket::{serde::json::Json, tokio::sync::Mutex, State, response::{Responder, self}, Request, http::ContentType, Response};
+use rocket::{
+    http::{ContentType, Status},
+    response::{self, Responder},
+    serde::json::Json,
+    tokio::sync::Mutex,
+    Request, Response, State,
+};
 use shared::data::Registration;
-use thiserror::Error;
 
 #[macro_use]
 extern crate rocket;
@@ -39,9 +45,16 @@ async fn get_registration(
 }
 
 #[post("/registration", format = "application/json", data = "<registration>")]
-async fn post_registration(registration: Json<Registration>, state: &State<Mutex<AppData>>) -> Result<(), RegistrationError> {
+async fn post_registration(
+    registration: Json<Registration>,
+    state: &State<Mutex<AppData>>,
+) -> Result<(), RegistrationError> {
     let mut lock = state.lock().await;
-    if lock.registrations.iter().any(|reg| reg.registration_number == registration.registration_number) {
+    if lock
+        .registrations
+        .iter()
+        .any(|reg| reg.registration_number == registration.registration_number)
+    {
         Err(RegistrationError::AlreadyExists)
     } else {
         lock.registrations.push(registration.0);
@@ -49,19 +62,31 @@ async fn post_registration(registration: Json<Registration>, state: &State<Mutex
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 enum RegistrationError {
-    #[error("A registration with that registration number already exists.")]
-    AlreadyExists
+    AlreadyExists,
+}
+
+impl ErrorResponder for RegistrationError {
+    fn response(&self) -> (Status, String) {
+        match self {
+            RegistrationError::AlreadyExists => (Status::Conflict, "A registration with that registration number already exists.".to_string()),
+        }
+    }
+}
+
+trait ErrorResponder {
+    fn response(&self) -> (Status, String);
 }
 
 #[rocket::async_trait]
 impl<'r> Responder<'r, 'static> for RegistrationError {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-        let s =self.to_string();
+        let (status, body) = self.response();
         Response::build()
+            .status(status)
             .header(ContentType::Plain)
-            .sized_body(s.len(), Cursor::new(s))
+            .sized_body(body.len(), Cursor::new(body))
             .ok()
     }
 }
