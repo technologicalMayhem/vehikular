@@ -8,6 +8,7 @@ use rocket::{
     tokio::sync::Mutex,
     Request, Response, State,
 };
+use serde::{Deserialize, Serialize};
 use shared::data::Registration;
 
 #[macro_use]
@@ -23,6 +24,22 @@ impl AppData {
             registrations: vec![],
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct StatusData {
+    pub is_debug: bool,
+}
+
+impl StatusData {
+    fn new() -> Self {
+        StatusData { is_debug: cfg!(debug_assertions) }
+    }
+}
+
+#[get("/status")]
+fn get_status() -> Json<StatusData> {
+    Json(StatusData::new())
 }
 
 #[get("/registration/<reg_num>")]
@@ -81,7 +98,7 @@ async fn put_registration(
 }
 
 enum RegistrationResult {
-    NoContent
+    NoContent,
 }
 
 #[derive(Debug)]
@@ -127,7 +144,7 @@ impl<'r> Responder<'r, 'static> for RegistrationResult {
             RegistrationResult::NoContent => Response::build()
                 .status(Status::NoContent)
                 .header(ContentType::Plain)
-                .ok()
+                .ok(),
         }
     }
 }
@@ -136,6 +153,11 @@ impl<'r> Responder<'r, 'static> for RegistrationResult {
 fn rocket() -> _ {
     rocket::build().manage(Mutex::new(AppData::new())).mount(
         "/",
-        routes![get_registration, post_registration, put_registration],
+        routes![
+            get_status,
+            get_registration,
+            post_registration,
+            put_registration
+        ],
     )
 }

@@ -1579,6 +1579,8 @@ name = "web-app"
 version = "0.1.0"
 dependencies = [
  "rocket",
+ "serde",
+ "serde_json",
  "shared",
  "thiserror",
 ]
