@@ -13,6 +13,6 @@ shared = { path = "../shared" }
 serde_json = "1.0.96"
 pcsc = "2.8.0"
 clap = { version = "4.2.7", features = ["derive"] }
-iso7816-tlv = "0.4.3"
+iso7816-tlv = { path = "../../iso7816-tlv" }
 serde = { version = "1.0.163", features = ["derive"] }
 thiserror = "1.0.40"
