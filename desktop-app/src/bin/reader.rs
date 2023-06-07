@@ -1,11 +1,10 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashSet},
     env::args,
-    ffi::CStr,
 };
 
 use color_eyre::Result;
-use pcsc::{Context, Error, Protocols, ReaderState, Scope, ShareMode, State, PNP_NOTIFICATION};
+use pcsc::{Context, Protocols, ReaderState, Scope, ShareMode, State, PNP_NOTIFICATION};
 
 use desktop_app::{read_card, DEBUG};
 use shared::data::Registration;
