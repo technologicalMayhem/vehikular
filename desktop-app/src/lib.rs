@@ -1,38 +1,86 @@
 #![feature(iter_intersperse)]
 
-use std::{fs, sync::Mutex};
-
-use color_eyre::{eyre::eyre, Result};
-use iso7816_tlv::ber::{Tag, Tlv, Value};
+use iso7816_tlv::{
+    ber::{Tag, Tlv, Value},
+    TlvError,
+};
+use parsing::combine_registrations;
 use pcsc::{Card, MAX_BUFFER_SIZE};
+use shared::data::Registration;
+use std::{collections::HashMap, sync::Mutex};
 use thiserror::Error;
 
-use crate::select_file::{File, retrieve_file};
+use crate::select_file::{retrieve_file, File};
+
+mod parsing;
 
 pub static DEBUG: Mutex<bool> = Mutex::new(false);
 
-pub fn read_files(card: &Card, files: Vec<File>) {
-    for file in files {
-        println!("Selecting {file:?}");
-        let data = match retrieve_file(card, &file) {
-            Ok(file) => file,
-            Err(e) => {
-                eprintln!("Encountered an error whilst reading {file:?}\n{e:?}");
-                continue;
-            }
-        };
-        println!("Finished reading {file:?}.");
-        fs::write(format!("{file:?}.data"), &data).expect("Could not write file {file:?}");
+pub fn read_card(card: &Card) -> Result<Registration, CardReadingError> {
+    if !is_evrc_card(card)? {
+        Err(CardReadingError::NotAneVrc)?;
     }
+
+    let files = read_files(
+        card,
+        vec![
+            File::FSOd,
+            File::RegistrationA,
+            File::RegistrationB,
+            File::RegistrationC,
+        ],
+    )?;
+
+    let registrations: Vec<Tlv> = files
+        .iter()
+        .filter_map(|(file, bytes)| {
+            if *file == File::FSOd {
+                None
+            } else {
+                Some(Tlv::parse_all(bytes))
+            }
+        })
+        .collect::<Vec<Vec<Tlv>>>()
+        .concat();
+
+    Ok(combine_registrations(&registrations))
 }
 
-pub fn run_apdu(card: &Card, apdu: &Vec<u8>) -> Result<Vec<u8>> {
+#[derive(Debug, Error)]
+pub enum CardReadingError {
+    #[error("The card is not a eVRC card.")]
+    NotAneVrc,
+    #[error("Got unsuccessful response from card. Command: {0:?}. Response: {1:?}")]
+    UnsuccesfulResponseFromCard(Vec<u8>, Vec<u8>),
+    #[error("Could not read TLV")]
+    TlvReadError(#[from] TlvError),
+    #[error("Could not parse the FCP template for {0:?}")]
+    FailedToReadFcp(File, FcpParseError),
+}
+
+fn is_evrc_card(card: &Card) -> Result<bool, CardReadingError> {
+    let response = run_apdu(card, &SELECT_EVRC_APPLICATION.to_vec())?;
+    Ok(response == SELECT_EVRC_APPLICATION_EXPECTED_RESPONSE)
+}
+
+fn read_files(card: &Card, files: Vec<File>) -> Result<HashMap<File, Vec<u8>>, CardReadingError> {
+    let mut map = HashMap::new();
+
+    for file in files {
+        let bytes = retrieve_file(card, file)?;
+        map.insert(file, bytes);
+    }
+
+    Ok(map)
+}
+
+fn run_apdu(card: &Card, apdu: &Vec<u8>) -> Result<Vec<u8>, CardReadingError> {
     if is_debug() {
         println!("Sending APDU: {apdu:?}");
     }
 
-    let mut rapdu_buf = [0; MAX_BUFFER_SIZE];
-    let response = match card.transmit(apdu, &mut rapdu_buf) {
+    let mut response_buf = [0; MAX_BUFFER_SIZE];
+    let response = match card.transmit(apdu, &mut response_buf) {
         Ok(response) => response,
         Err(err) => {
             eprintln!("Failed to transmit APDU command to card: {err}");
@@ -44,7 +92,10 @@ pub fn run_apdu(card: &Card, apdu: &Vec<u8>) -> Result<Vec<u8>> {
         // We lop off the response bytes if it's succesful as they are not needed.
         Ok(response[0..response.len() - 2].to_vec())
     } else {
-        Err(eyre!("Got unsuccesful response from card: {response:X?}"))
+        Err(CardReadingError::UnsuccesfulResponseFromCard(
+            apdu.clone(),
+            response.to_vec(),
+        ))
     }
 }
 
@@ -74,7 +125,7 @@ pub mod select_file {
     use iso7816_tlv::ber::Tlv;
     use pcsc::Card;
 
-    use crate::{run_apdu, FcpTemplate};
+    use crate::{run_apdu, CardReadingError, FcpTemplate};
 
     /// Class byte. 00 indicates no secure messaging (SM).
     const CLA: u8 = 0x00;
@@ -89,7 +140,7 @@ pub mod select_file {
     /// Expected length byte. How long we expect the response to be. 00 indicates that we expect any length.
     const LE: u8 = 0x00;
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
     pub enum File {
         FSOd,
         RegistrationA,
@@ -120,22 +171,23 @@ pub mod select_file {
         }
     }
 
-    pub fn retrieve_file(card: &Card, file: &File) -> Result<Vec<u8>> {
+    pub fn retrieve_file(card: &Card, file: File) -> Result<Vec<u8>, CardReadingError> {
         let fcp = select_file(card, file)?;
         read_file(card, &fcp)
     }
 
-    fn select_file(card: &Card, file: &File) -> Result<FcpTemplate> {
+    fn select_file(card: &Card, file: File) -> Result<FcpTemplate, CardReadingError> {
         let file_id = file.get_indetifier();
         let apdu = vec![CLA, INS, P1, P2, LC, file_id[0], file_id[1], LE];
         let response = run_apdu(card, &apdu)?;
         let (fcp, _) = Tlv::parse(&response);
-        
-        Ok(FcpTemplate::try_from(fcp?)?)
+
+        FcpTemplate::try_from(fcp?)
+            .map_err(|err| CardReadingError::FailedToReadFcp(file, err))
     }
 
     #[allow(clippy::cast_possible_truncation)]
-    fn read_file(card: &Card, fcp: &FcpTemplate) -> Result<Vec<u8>> {
+    fn read_file(card: &Card, fcp: &FcpTemplate) -> Result<Vec<u8>, CardReadingError> {
         let mut data: Vec<u8> = Vec::new();
 
         for offset in (0..fcp.file_size.0).step_by(256) {
@@ -159,29 +211,26 @@ impl FcpTemplate {
         0x62
     }
 
-    fn get_inner(
-        inner: &[Tlv],
-        value: i32,
-    ) -> Result<&Tlv, <FcpTemplate as TryFrom<Tlv>>::Error> {
+    fn get_inner(inner: &[Tlv], value: i32) -> Result<&Tlv, <FcpTemplate as TryFrom<Tlv>>::Error> {
         let tag = Tag::try_from(value)?;
         let file_size_tlv = inner
             .iter()
             .find(|tlv| *tlv.tag() == tag)
-            .ok_or(ParseError::MissingTlvInValue)?;
+            .ok_or(FcpParseError::MissingTlvInValue)?;
         Ok(file_size_tlv)
     }
 }
 
 impl TryFrom<Tlv> for FcpTemplate {
-    type Error = ParseError;
+    type Error = FcpParseError;
 
     fn try_from(value: Tlv) -> std::result::Result<Self, Self::Error> {
         if *value.tag() != Tag::try_from(Self::tag())? {
-            Err(ParseError::WrongTag(Self::tag(), value.tag().clone()))?;
+            Err(FcpParseError::WrongTag(Self::tag(), value.tag().clone()))?;
         }
 
         let Value::Constructed(inner) = value.value() else {
-            Err(ParseError::NoInnerContructed)?
+            Err(FcpParseError::NoInnerContructed)?
         };
 
         let file_id_tlv = Self::get_inner(inner, FileId::tag())?;
@@ -203,18 +252,18 @@ impl FileId {
 }
 
 impl TryFrom<&Tlv> for FileId {
-    type Error = ParseError;
+    type Error = FcpParseError;
 
     fn try_from(value: &Tlv) -> std::result::Result<Self, Self::Error> {
         if *value.tag() != Tag::try_from(Self::tag())? {
-            Err(ParseError::WrongTag(Self::tag(), value.tag().clone()))?;
+            Err(FcpParseError::WrongTag(Self::tag(), value.tag().clone()))?;
         }
         let Value::Primitive(data) = value.value() else {
-            Err(ParseError::NoInnerPrimitive)?
+            Err(FcpParseError::NoInnerPrimitive)?
         };
 
         if data.len() != 2 {
-            Err(ParseError::InvalidValue("FileId".into(), value.length()))?;
+            Err(FcpParseError::InvalidValue("FileId".into(), value.length()))?;
         }
 
         let mut id: [u8; 2] = [0; 2];
@@ -233,18 +282,21 @@ impl FileSize {
 }
 
 impl TryFrom<&Tlv> for FileSize {
-    type Error = ParseError;
+    type Error = FcpParseError;
 
     fn try_from(value: &Tlv) -> std::result::Result<Self, Self::Error> {
         if *value.tag() != Tag::try_from(Self::tag())? {
-            Err(ParseError::WrongTag(Self::tag(), value.tag().clone()))?;
+            Err(FcpParseError::WrongTag(Self::tag(), value.tag().clone()))?;
         }
         let Value::Primitive(data) = value.value() else {
-            Err(ParseError::NoInnerPrimitive)?
+            Err(FcpParseError::NoInnerPrimitive)?
         };
 
         if data.len() != 2 {
-            Err(ParseError::InvalidValue("FileSize".into(), value.length()))?;
+            Err(FcpParseError::InvalidValue(
+                "FileSize".into(),
+                value.length(),
+            ))?;
         }
 
         let mut size: [u8; 2] = [0; 2];
@@ -255,7 +307,7 @@ impl TryFrom<&Tlv> for FileSize {
 }
 
 #[derive(Debug, Error)]
-enum ParseError {
+pub enum FcpParseError {
     #[error("")]
     TlvError(#[from] iso7816_tlv::TlvError),
     #[error("A unexpected tag was encountered. Expected {0}. Got {1}.")]

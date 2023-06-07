@@ -16,3 +16,4 @@ clap = { version = "4.2.7", features = ["derive"] }
 iso7816-tlv = { path = "../../iso7816-tlv" }
 serde = { version = "1.0.163", features = ["derive"] }
 thiserror = "1.0.40"
+reqwest = { version = "0.11.18", features = ["blocking", "json"] }
