@@ -136,14 +136,12 @@ pub mod select_file {
 
     #[allow(clippy::cast_possible_truncation)]
     fn read_file(card: &Card, fcp: &FcpTemplate) -> Result<Vec<u8>> {
-        let mut offset = 0u16;
         let mut data: Vec<u8> = Vec::new();
 
-        while offset < fcp.file_size.0 {
-            let bytes_offset: [u8; 2] = offset.to_le_bytes();
-            let apdu = [0x00, 0xB0, bytes_offset[0], bytes_offset[1], 0x00].to_vec();
+        for offset in (0..fcp.file_size.0).step_by(256) {
+            let offset: [u8; 2] = offset.to_be_bytes();
+            let apdu = [0x00, 0xB0, offset[0], offset[1], 0x00].to_vec();
             let response = &mut run_apdu(card, &apdu)?;
-            offset += response.len() as u16;
             data.append(response);
         }
 
@@ -158,7 +156,7 @@ struct FcpTemplate {
 
 impl FcpTemplate {
     fn tag() -> i32 {
-        62
+        0x62
     }
 
     fn get_inner(
@@ -200,7 +198,7 @@ struct FileId(File);
 
 impl FileId {
     fn tag() -> i32 {
-        83
+        0x83
     }
 }
 
@@ -215,8 +213,8 @@ impl TryFrom<&Tlv> for FileId {
             Err(ParseError::NoInnerPrimitive)?
         };
 
-        if value.length() != 2 {
-            Err(ParseError::InvalidValue)?;
+        if data.len() != 2 {
+            Err(ParseError::InvalidValue("FileId".into(), value.length()))?;
         }
 
         let mut id: [u8; 2] = [0; 2];
@@ -230,7 +228,7 @@ struct FileSize(u16);
 
 impl FileSize {
     fn tag() -> i32 {
-        80
+        0x80
     }
 }
 
@@ -245,14 +243,14 @@ impl TryFrom<&Tlv> for FileSize {
             Err(ParseError::NoInnerPrimitive)?
         };
 
-        if value.length() != 2 {
-            Err(ParseError::InvalidValue)?;
+        if data.len() != 2 {
+            Err(ParseError::InvalidValue("FileSize".into(), value.length()))?;
         }
 
         let mut size: [u8; 2] = [0; 2];
         size.copy_from_slice(data);
 
-        Ok(FileSize(u16::from_le_bytes(size)))
+        Ok(FileSize(u16::from_be_bytes(size)))
     }
 }
 
@@ -268,6 +266,6 @@ enum ParseError {
     NoInnerContructed,
     #[error("Expected primitive data inside tlv but found none")]
     NoInnerPrimitive,
-    #[error("The value is invalid and cannot be parsed")]
-    InvalidValue,
+    #[error("The value is invalid and cannot be parsed. Length of {0}'s value field: {1}.")]
+    InvalidValue(String, usize),
 }
