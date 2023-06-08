@@ -202,7 +202,6 @@ pub mod select_file {
 }
 
 struct FcpTemplate {
-    file_id: FileId,
     file_size: FileSize,
 }
 
@@ -233,13 +232,11 @@ impl TryFrom<Tlv> for FcpTemplate {
             Err(FcpParseError::NoInnerContructed)?
         };
 
-        let file_id_tlv = Self::get_inner(inner, FileId::tag())?;
         let file_size_tlv = Self::get_inner(inner, FileSize::tag())?;
 
-        let file_id = FileId::try_from(file_id_tlv)?;
         let file_size = FileSize::try_from(file_size_tlv)?;
 
-        Ok(FcpTemplate { file_id, file_size })
+        Ok(FcpTemplate { file_size })
     }
 }
 
@@ -308,7 +305,7 @@ impl TryFrom<&Tlv> for FileSize {
 
 #[derive(Debug, Error)]
 pub enum FcpParseError {
-    #[error("")]
+    #[error("An error occured when parsing a tlv.")]
     TlvError(#[from] iso7816_tlv::TlvError),
     #[error("A unexpected tag was encountered. Expected {0}. Got {1}.")]
     WrongTag(i32, Tag),

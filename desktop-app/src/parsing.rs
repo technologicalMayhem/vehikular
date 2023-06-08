@@ -11,7 +11,7 @@ use iso7816_tlv::ber::{
 
 
 pub fn combine_registrations(registrations: &Vec<Tlv>) -> Registration {
-    let hash_map = tlv_to_hash_map(&registrations);
+    let hash_map = tlv_to_hash_map(registrations);
     hash_map_to_registration(&hash_map)
 }
 
