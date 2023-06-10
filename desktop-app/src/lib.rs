@@ -120,7 +120,7 @@ pub const SELECT_EVRC_APPLICATION_EXPECTED_RESPONSE: &[u8; 15] = &[
     0x6F, 0x0D, 0x84, 0x0B, 0xA0, 0x00, 0x00, 0x04, 0x56, 0x45, 0x56, 0x52, 0x2D, 0x30, 0x31,
 ];
 
-pub mod select_file {
+mod select_file {
     use color_eyre::Result;
     use iso7816_tlv::ber::Tlv;
     use pcsc::Card;
@@ -182,8 +182,7 @@ pub mod select_file {
         let response = run_apdu(card, &apdu)?;
         let (fcp, _) = Tlv::parse(&response);
 
-        FcpTemplate::try_from(fcp?)
-            .map_err(|err| CardReadingError::FailedToReadFcp(file, err))
+        FcpTemplate::try_from(fcp?).map_err(|err| CardReadingError::FailedToReadFcp(file, err))
     }
 
     #[allow(clippy::cast_possible_truncation)]
