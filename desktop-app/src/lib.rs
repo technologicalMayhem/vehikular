@@ -247,11 +247,13 @@ mod select_file {
     }
 }
 
+/// Describes a file on the eVRC smartcard.
 struct FcpTemplate {
     file_size: FileSize,
 }
 
 impl FcpTemplate {
+    /// The identifier byte of the FCP template.
     fn tag() -> i32 {
         0x62
     }
