@@ -1,11 +1,11 @@
 use gui::VehikularSettings;
-use iced::Sandbox;
+use iced::Application;
 
 mod gui;
 mod card_reading;
 mod parsing; 
 mod reader;
 
-fn main() -> iced::Result {
+fn main() -> Result<(), iced::Error> {
     VehikularSettings::run(iced::Settings::default())
 }

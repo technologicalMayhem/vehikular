@@ -1,12 +1,17 @@
+use std::borrow::ToOwned;
+
 use iced::{
     widget::{button, checkbox, column, row, text},
-    Alignment, Element, Sandbox,
+    Alignment, Element, Application, Command,
 };
+use iced::Sandbox;
+
+use crate::reader::Reader;
 
 pub struct VehikularSettings {
-    readers: Vec<String>,
     auto_upload: bool,
     auto_open: bool,
+    reader: Reader,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -20,7 +25,12 @@ pub enum Message {
     ViewCardWeb,
 }
 
-impl Sandbox for VehikularSettings {
+impl Application for VehikularSettings {
+    type Message = Message;
+    type Executor = iced::executor::Default;
+    type Theme = iced::Theme;
+    type Flags = ();
+
     fn view(&self) -> Element<Message> {
         let connection_text = text("Currently connected to");
         let connection_ip = text("10.10.0.69");
@@ -30,10 +40,9 @@ impl Sandbox for VehikularSettings {
             .align_items(Alignment::Center);
 
         let reader_text = text("Using reader ");
+        let selected = self.reader.readers.first().map(ToOwned::to_owned);
         let reader_dropdown =
-            iced::widget::pick_list(&self.readers, Some("Example Reader".to_string()), |_| {
-                Message::ChangeReader
-            });
+            iced::widget::pick_list(&self.reader.readers, selected, |_| Message::ChangeReader);
         let readers = row![reader_text, reader_dropdown]
             .spacing(5)
             .align_items(Alignment::Center);
@@ -61,7 +70,7 @@ impl Sandbox for VehikularSettings {
             .into()
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> iced::Command<Message> {
         match message {
             Message::ToggleAutoUpload => self.auto_upload = !self.auto_upload,
             Message::ToggleAutoOpen => self.auto_open = !self.auto_open,
@@ -70,24 +79,25 @@ impl Sandbox for VehikularSettings {
             Message::ViewCardWeb => todo!(),
             Message::ChangeConnection => todo!(),
             Message::ChangeReader => todo!(),
-        }
+        };
+
+        Command::none()
     }
 
     fn title(&self) -> String {
         "Vehikular Desktop".to_string()
     }
 
-    type Message = Message;
-
-    fn new() -> Self {
-        VehikularSettings {
-            readers: vec!["Example Reader".to_string()],
-            auto_upload: false,
-            auto_open: false,
-        }
-    }
-
     fn theme(&self) -> iced::Theme {
         iced::Theme::Dark
+    }
+
+
+    fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        (VehikularSettings {
+            reader: Reader::new(),
+            auto_upload: false,
+            auto_open: false,
+        }, Command::none())
     }
 }

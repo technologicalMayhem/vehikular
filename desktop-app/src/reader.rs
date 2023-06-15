@@ -1,4 +1,4 @@
-use std::{collections::HashSet};
+use std::collections::HashSet;
 
 use color_eyre::Result;
 use pcsc::{Context, Protocols, ReaderState, Scope, ShareMode, State, PNP_NOTIFICATION};
@@ -15,9 +15,15 @@ pub enum Error {
     Http(#[from] reqwest::Error),
 }
 
-pub struct Reader {}
+pub struct Reader {
+    pub readers: Vec<String>,
+}
 
 impl Reader {
+    pub fn new() -> Self {
+        Reader { readers: vec![] }
+    }
+
     pub fn reader_thread() -> Result<(), Error> {
         let ctx = Context::establish(Scope::User)?;
 
@@ -94,7 +100,13 @@ impl Reader {
 
 fn upload(registration: &Registration) -> Result<(), reqwest::Error> {
     let client = reqwest::blocking::ClientBuilder::new().build()?;
-    client.post("http://localhost:8000/registration").json(&registration).send()?;
-    println!("Uploaded sucefully. Should be available under: http://localhost:8000/registration/{}", registration.registration_number);
+    client
+        .post("http://localhost:8000/registration")
+        .json(&registration)
+        .send()?;
+    println!(
+        "Uploaded sucefully. Should be available under: http://localhost:8000/registration/{}",
+        registration.registration_number
+    );
     Ok(())
 }
