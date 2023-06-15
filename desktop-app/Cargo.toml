@@ -19,3 +19,5 @@ serde = { version = "1.0.163", features = ["derive"] }
 thiserror = "1.0.40"
 reqwest = { version = "0.11.18", features = ["blocking", "json"] }
 iced = "0.9"
+simplelog = "0.12.1"
+log = "0.4.19"

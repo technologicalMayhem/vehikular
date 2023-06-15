@@ -1,20 +1,15 @@
-#![feature(iter_intersperse)]
-
+use crate::parsing::combine_registrations;
 use iso7816_tlv::{
     ber::{Tag, Tlv, Value},
     TlvError,
 };
-use parsing::combine_registrations;
+use log::debug;
 use pcsc::{Card, MAX_BUFFER_SIZE};
 use shared::data::Registration;
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap};
 use thiserror::Error;
 
-use crate::select_file::{retrieve_file, File};
-
-mod parsing;
-
-pub static DEBUG: Mutex<bool> = Mutex::new(false);
+use crate::card_reading::select_file::{retrieve_file, File};
 
 /// Read all regisration files from the card and combines their data into the [``Registration``] struct for easier use.
 ///
@@ -110,9 +105,7 @@ fn read_files(card: &Card, files: Vec<File>) -> Result<HashMap<File, Vec<u8>>, C
 ///
 /// This function will return an error if an error occured whilst reading the card.
 fn run_apdu(card: &Card, apdu: &Vec<u8>) -> Result<Vec<u8>, CardReadingError> {
-    if is_debug() {
-        println!("Sending APDU: {apdu:?}");
-    }
+    debug!("Sending APDU: {apdu:?}");
 
     let mut response_buf = [0; MAX_BUFFER_SIZE];
     let response = card.transmit(apdu, &mut response_buf)?;
@@ -126,17 +119,6 @@ fn run_apdu(card: &Card, apdu: &Vec<u8>) -> Result<Vec<u8>, CardReadingError> {
             response.to_vec(),
         ))
     }
-}
-
-/// Checks whether we are in a debug mode. This is mainly used to figure out if additional debug information should be printed to the console.
-///
-/// TODO: Debug info like this should be either completly removed from this library or implemented in a better and less hacky approach.
-///
-/// # Panics
-///
-/// Panics if a lock on the [``Debug``] value could not be acquired.
-fn is_debug() -> bool {
-    *DEBUG.lock().expect("Could not read debug value")
 }
 
 /// Checks if a response from the eVRC card has [0x90, 0x00], which indicates successful processing, at the end.
@@ -155,7 +137,7 @@ mod select_file {
     use iso7816_tlv::ber::Tlv;
     use pcsc::Card;
 
-    use crate::{run_apdu, CardReadingError, FcpTemplate};
+    use crate::card_reading::{run_apdu, CardReadingError, FcpTemplate};
 
     /// Class byte. 00 indicates no secure messaging (SM).
     const CLA: u8 = 0x00;

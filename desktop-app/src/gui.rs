@@ -3,14 +3,14 @@ use iced::{
     Alignment, Element, Sandbox,
 };
 
-struct VehikularSettings {
+pub struct VehikularSettings {
     readers: Vec<String>,
     auto_upload: bool,
     auto_open: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Message {
+pub enum Message {
     ChangeConnection,
     ChangeReader,
     ToggleAutoUpload,
@@ -90,13 +90,4 @@ impl Sandbox for VehikularSettings {
     fn theme(&self) -> iced::Theme {
         iced::Theme::Dark
     }
-}
-
-fn main() -> iced::Result {
-    VehikularSettings::run(iced::Settings {
-        window: iced::window::Settings {
-            ..Default::default()
-        },
-        ..Default::default()
-    })
 }
