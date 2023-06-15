@@ -1,11 +1,10 @@
 use iced::{
-    widget::{checkbox, column, button, row, text},
-    Element, Sandbox, Settings,
+    widget::{button, checkbox, column, row, text},
+    Alignment, Element, Sandbox,
 };
 
 struct VehikularSettings {
     readers: Vec<String>,
-    cur_reader: usize,
     auto_upload: bool,
     auto_open: bool,
 }
@@ -18,31 +17,37 @@ enum Message {
     ToggleAutoOpen,
     UploadCard,
     ViewCardLocal,
-    ViewCardWeb
+    ViewCardWeb,
 }
 
 impl Sandbox for VehikularSettings {
     fn view(&self) -> Element<Message> {
-        let connection_text = text("Currently connected to 10.10.0.69");
+        let connection_text = text("Currently connected to");
+        let connection_ip = text("10.10.0.69");
         let connection_edit = button("Change Server").on_press(Message::ChangeConnection);
-
-        let connection = row![connection_text, connection_edit].spacing(5).align_items(iced::Alignment::Center);
+        let connection = row![connection_text, connection_ip, connection_edit]
+            .spacing(5)
+            .align_items(Alignment::Center);
 
         let reader_text = text("Using reader ");
-        let reader_dropdown = iced::widget::pick_list(&self.readers, Some("Example Reader".to_string()), |_| Message::ChangeReader);
+        let reader_dropdown =
+            iced::widget::pick_list(&self.readers, Some("Example Reader".to_string()), |_| {
+                Message::ChangeReader
+            });
+        let readers = row![reader_text, reader_dropdown]
+            .spacing(5)
+            .align_items(Alignment::Center);
 
-        let readers = row![reader_text, reader_dropdown].spacing(5).align_items(iced::Alignment::Center);
-
+        let auto_text = text("When a card is inserted");
         let auto_upload = checkbox(
-            "Automatically upload vehicle data when a card is inserted",
+            "Automatically upload vehicle data",
             self.auto_upload,
             |_| Message::ToggleAutoUpload,
         );
-        let auto_open = checkbox(
-            "Automatically open vehicle webpage when a card is inserted",
-            self.auto_open,
-            |_| Message::ToggleAutoOpen,
-        );
+        let auto_open = checkbox("Open vehicle webpage", self.auto_open, |_| {
+            Message::ToggleAutoOpen
+        });
+        let auto = column![auto_text, auto_upload, auto_open].spacing(5);
 
         let manual_upload = button("Upload card content").on_press(Message::UploadCard);
         let view_local = button("View data locally").on_press(Message::ViewCardLocal);
@@ -50,9 +55,9 @@ impl Sandbox for VehikularSettings {
 
         let actions = row![manual_upload, view_local, view_web].spacing(5);
 
-        column![connection, readers, auto_upload, auto_open, actions]
+        column![connection, readers, auto, actions]
             .padding(10)
-            .spacing(5)
+            .spacing(10)
             .into()
     }
 
@@ -77,17 +82,21 @@ impl Sandbox for VehikularSettings {
     fn new() -> Self {
         VehikularSettings {
             readers: vec!["Example Reader".to_string()],
-            cur_reader: 0,
             auto_upload: false,
             auto_open: false,
         }
+    }
+
+    fn theme(&self) -> iced::Theme {
+        iced::Theme::Dark
     }
 }
 
 fn main() -> iced::Result {
     VehikularSettings::run(iced::Settings {
-        window: iced::window::Settings { 
-            ..Default::default() },
+        window: iced::window::Settings {
+            ..Default::default()
+        },
         ..Default::default()
     })
 }
