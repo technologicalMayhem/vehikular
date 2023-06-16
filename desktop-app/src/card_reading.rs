@@ -110,6 +110,8 @@ fn run_apdu(card: &Card, apdu: &Vec<u8>) -> Result<Vec<u8>, CardReadingError> {
     let mut response_buf = [0; MAX_BUFFER_SIZE];
     let response = card.transmit(apdu, &mut response_buf)?;
 
+    debug!("Got response: {response:?}");
+
     if is_sucessful(response) {
         // We lop off the response bytes if it's succesful as they are not needed.
         Ok(response[0..response.len() - 2].to_vec())

@@ -1,23 +1,23 @@
-use std::borrow::ToOwned;
-
 use iced::{
-    widget::{button, checkbox, column, row, text},
-    Alignment, Element, Application, Command,
+    widget::{button, checkbox, column, pick_list, row, text, text_input},
+    Alignment, Application, Command, Element,
 };
-use iced::Sandbox;
+use log::error;
 
 use crate::reader::Reader;
 
 pub struct VehikularSettings {
+    address: String,
     auto_upload: bool,
     auto_open: bool,
     reader: Reader,
+    selected_reader: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Message {
-    ChangeConnection,
-    ChangeReader,
+    AddressChanged(String),
+    ChangeReader(String),
     ToggleAutoUpload,
     ToggleAutoOpen,
     UploadCard,
@@ -34,15 +34,18 @@ impl Application for VehikularSettings {
     fn view(&self) -> Element<Message> {
         let connection_text = text("Currently connected to");
         let connection_ip = text("10.10.0.69");
-        let connection_edit = button("Change Server").on_press(Message::ChangeConnection);
+        let connection_edit =
+            text_input("e.g. localhost:8000", "").on_input(Message::AddressChanged);
         let connection = row![connection_text, connection_ip, connection_edit]
             .spacing(5)
             .align_items(Alignment::Center);
 
         let reader_text = text("Using reader ");
-        let selected = self.reader.readers.first().map(ToOwned::to_owned);
-        let reader_dropdown =
-            iced::widget::pick_list(&self.reader.readers, selected, |_| Message::ChangeReader);
+        let reader_dropdown = pick_list(
+            self.reader.get_readers(),
+            self.selected_reader.clone(),
+            Message::ChangeReader,
+        );
         let readers = row![reader_text, reader_dropdown]
             .spacing(5)
             .align_items(Alignment::Center);
@@ -72,14 +75,27 @@ impl Application for VehikularSettings {
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
         match message {
-            Message::ToggleAutoUpload => self.auto_upload = !self.auto_upload,
-            Message::ToggleAutoOpen => self.auto_open = !self.auto_open,
-            Message::UploadCard => todo!(),
+            Message::ToggleAutoUpload => todo!(),
+            Message::ToggleAutoOpen => todo!(),
+            Message::UploadCard => {
+                if let Some(reader) = &self.selected_reader {
+                    match self.reader.process_reader(reader, &self.address) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            error!("An error occured whilst processing the card: {err}")
+                        }
+                    }
+                }
+            }
             Message::ViewCardLocal => todo!(),
             Message::ViewCardWeb => todo!(),
-            Message::ChangeConnection => todo!(),
-            Message::ChangeReader => todo!(),
+            Message::AddressChanged(address) => self.address = address,
+            Message::ChangeReader(reader) => self.selected_reader = Some(reader),
         };
+
+        self.reader
+            .update_readers()
+            .expect("there was an issue whilst updating readers");
 
         Command::none()
     }
@@ -92,12 +108,16 @@ impl Application for VehikularSettings {
         iced::Theme::Dark
     }
 
-
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
-        (VehikularSettings {
-            reader: Reader::new(),
-            auto_upload: false,
-            auto_open: false,
-        }, Command::none())
+        (
+            VehikularSettings {
+                reader: Reader::new().expect("Could not create reader."),
+                auto_upload: false,
+                auto_open: false,
+                address: String::new(),
+                selected_reader: None,
+            },
+            Command::none(),
+        )
     }
 }

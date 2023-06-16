@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use color_eyre::Result;
+use log::{error, info};
 use pcsc::{Context, Protocols, ReaderState, Scope, ShareMode, State, PNP_NOTIFICATION};
 use thiserror::Error;
 
@@ -13,99 +14,128 @@ pub enum Error {
     Pcsc(#[from] pcsc::Error),
     #[error("An error occured when interacting with the server: {0}")]
     Http(#[from] reqwest::Error),
+    #[error("Could not connect to card.")]
+    ConectionFailure,
+    #[error("The card is not present anymore.")]
+    CardNotFound,
 }
 
 pub struct Reader {
-    pub readers: Vec<String>,
+    ctx: Context,
+    reader_states: Vec<ReaderState>,
+    have_been_read: HashSet<String>,
 }
 
 impl Reader {
-    pub fn new() -> Self {
-        Reader { readers: vec![] }
+    pub fn new() -> Result<Self, Error> {
+        Ok(Reader {
+            ctx: Context::establish(Scope::User)?,
+            reader_states: vec![
+                // Listen for reader insertions/removals, if supported.
+                ReaderState::new(PNP_NOTIFICATION(), State::UNAWARE),
+            ],
+            have_been_read: HashSet::new(),
+        })
     }
 
-    pub fn reader_thread() -> Result<(), Error> {
-        let ctx = Context::establish(Scope::User)?;
+    /// Tests if a reader is dead.
+    fn is_dead(rs: &ReaderState) -> bool {
+        rs.event_state().intersects(State::UNKNOWN | State::IGNORE)
+    }
 
+    pub fn update_readers(&mut self) -> Result<(), Error> {
         let mut readers_buf = [0; 2048];
-        let mut reader_states = vec![
-            // Listen for reader insertions/removals, if supported.
-            ReaderState::new(PNP_NOTIFICATION(), State::UNAWARE),
-        ];
-        let mut have_been_read: HashSet<String> = HashSet::new();
+        // Remove dead readers.
 
-        loop {
-            // Remove dead readers.
-            fn is_dead(rs: &ReaderState) -> bool {
-                rs.event_state().intersects(State::UNKNOWN | State::IGNORE)
+        for rs in &self.reader_states {
+            if Self::is_dead(rs) {
+                println!("Removing {:?}", rs.name());
+                self.have_been_read.remove(&rs.name().to_string_lossy().to_string());
             }
-            for rs in &reader_states {
-                if is_dead(rs) {
-                    println!("Removing {:?}", rs.name());
-                    have_been_read.remove(&rs.name().to_string_lossy().to_string());
+        }
+        self.reader_states.retain(|rs| !Self::is_dead(rs));
+
+        // Add new readers.
+        let names = self.ctx.list_readers(&mut readers_buf)?;
+        for name in names {
+            if !self.reader_states.iter().any(|rs| rs.name() == name) {
+                println!("Adding {name:?}");
+                self.reader_states
+                    .push(ReaderState::new(name, State::UNAWARE));
+            }
+        }
+
+        // Update the view of the state to wait on.
+        for rs in &mut self.reader_states {
+            rs.sync_current_state();
+        }
+
+        Ok(())
+    }
+
+    pub fn get_readers(&self) -> Vec<String> {
+        self.reader_states
+            .iter()
+            .filter_map(|rs| {
+                if rs.name() != PNP_NOTIFICATION() {
+                    Some(rs.name().to_string_lossy().to_string())
+                } else {
+                    None
                 }
-            }
-            reader_states.retain(|rs| !is_dead(rs));
+            })
+            .collect()
+    }
 
-            // Add new readers.
-            let names = ctx
-                .list_readers(&mut readers_buf)
-                .expect("failed to list readers");
-            for name in names {
-                if !reader_states.iter().any(|rs| rs.name() == name) {
-                    println!("Adding {name:?}");
-                    reader_states.push(ReaderState::new(name, State::UNAWARE));
+    pub fn process_reader(&self, reader: &str, upload_address: &str) -> Result<(), Error> {
+        let Some(reader) = self
+            .reader_states
+            .iter()
+            .position(|rs| rs.name().to_string_lossy().to_string() == reader)
+            .and_then(|index| self.reader_states.get(index))
+        else {
+            Err(Error::CardNotFound)?
+        };
+
+        if reader.name() != PNP_NOTIFICATION()
+            && reader.event_state().contains(State::PRESENT)
+            && !self.have_been_read.contains(&reader.name().to_string_lossy().to_string())
+        {
+            // Connect to the card.
+            let card = match self
+                .ctx
+                .connect(reader.name(), ShareMode::Shared, Protocols::ANY)
+            {
+                Ok(card) => card,
+                Err(err) => {
+                    error!("Failed to connect to card: {err}");
+                    Err(Error::ConectionFailure)?
                 }
-            }
+            };
 
-            // Update the view of the state to wait on.
-            for rs in &mut reader_states {
-                rs.sync_current_state();
-            }
-
-            // Wait until the state changes.
-            ctx.get_status_change(None, &mut reader_states)?;
-
-            // Print current state.
-            println!();
-            for rs in &reader_states {
-                if rs.name() != PNP_NOTIFICATION()
-                    && rs.event_state().contains(State::PRESENT)
-                    && !have_been_read.contains(&rs.name().to_string_lossy().to_string())
-                {
-                    // Connect to the card.
-                    let card = match ctx.connect(rs.name(), ShareMode::Shared, Protocols::ANY) {
-                        Ok(card) => card,
-                        Err(err) => {
-                            eprintln!("Failed to connect to card: {err}");
-                            std::process::exit(1);
-                        }
-                    };
-
-                    println!("Found a card. Attempting read.");
-                    match read_card(&card) {
-                        Ok(registration) => {
-                            println!("Read successful. Uploading.");
-                            upload(&registration)?;
-                        }
-                        Err(err) => {
-                            println!("Failed to read card. {err}");
-                        }
-                    };
+            info!("Found a card. Attempting read.");
+            match read_card(&card) {
+                Ok(registration) => {
+                    info!("Read successful. Uploading.");
+                    upload(&registration, upload_address)?;
+                }
+                Err(err) => {
+                    error!("Failed to read card. {err}");
                 }
             }
         }
+
+        Ok(())
     }
 }
 
-fn upload(registration: &Registration) -> Result<(), reqwest::Error> {
+fn upload(registration: &Registration, upload_address: &str) -> Result<(), reqwest::Error> {
     let client = reqwest::blocking::ClientBuilder::new().build()?;
     client
-        .post("http://localhost:8000/registration")
+        .post(format!("http://{upload_address}/registration"))
         .json(&registration)
         .send()?;
     println!(
-        "Uploaded sucefully. Should be available under: http://localhost:8000/registration/{}",
+        "Uploaded sucefully. Should be available under: http://{upload_address}/registration/{}",
         registration.registration_number
     );
     Ok(())
