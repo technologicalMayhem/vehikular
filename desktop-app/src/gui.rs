@@ -12,6 +12,7 @@ pub struct VehikularSettings {
     auto_open: bool,
     reader: Reader,
     selected_reader: Option<String>,
+    status_message: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,11 +33,10 @@ impl Application for VehikularSettings {
     type Flags = ();
 
     fn view(&self) -> Element<Message> {
-        let connection_text = text("Currently connected to");
-        let connection_ip = text("10.10.0.69");
+        let connection_text = text("Address");
         let connection_edit =
-            text_input("e.g. localhost:8000", "").on_input(Message::AddressChanged);
-        let connection = row![connection_text, connection_ip, connection_edit]
+            text_input("e.g. localhost:8000", &self.address).on_input(Message::AddressChanged);
+        let connection = row![connection_text, connection_edit]
             .spacing(5)
             .align_items(Alignment::Center);
 
@@ -50,24 +50,30 @@ impl Application for VehikularSettings {
             .spacing(5)
             .align_items(Alignment::Center);
 
-        let auto_text = text("When a card is inserted");
-        let auto_upload = checkbox(
-            "Automatically upload vehicle data",
-            self.auto_upload,
-            |_| Message::ToggleAutoUpload,
-        );
-        let auto_open = checkbox("Open vehicle webpage", self.auto_open, |_| {
-            Message::ToggleAutoOpen
-        });
-        let auto = column![auto_text, auto_upload, auto_open].spacing(5);
+        // let auto_text = text("When a card is inserted");
+        // let auto_upload = checkbox(
+        //     "Automatically upload vehicle data",
+        //     self.auto_upload,
+        //     |_| Message::ToggleAutoUpload,
+        // );
+        // let auto_open = checkbox("Open vehicle webpage", self.auto_open, |_| {
+        //     Message::ToggleAutoOpen
+        // });
+        // let auto = column![auto_text, auto_upload, auto_open].spacing(5);
 
         let manual_upload = button("Upload card content").on_press(Message::UploadCard);
-        let view_local = button("View data locally").on_press(Message::ViewCardLocal);
-        let view_web = button("View data on the web").on_press(Message::ViewCardWeb);
+        //let view_local = button("View data locally").on_press(Message::ViewCardLocal);
+        //let view_web = button("View data on the web").on_press(Message::ViewCardWeb);
 
-        let actions = row![manual_upload, view_local, view_web].spacing(5);
+        let actions = row![manual_upload].spacing(5);
 
-        column![connection, readers, auto, actions]
+        let message = match &self.status_message {
+            Some(message) => {message},
+            None => {""},
+        };
+        let status_message = text(message);
+
+        column![connection, readers, actions, status_message]
             .padding(10)
             .spacing(10)
             .into()
@@ -82,7 +88,7 @@ impl Application for VehikularSettings {
                     match self.reader.process_reader(reader, &self.address) {
                         Ok(_) => {}
                         Err(err) => {
-                            error!("An error occured whilst processing the card: {err}")
+                            error!("An error occured whilst processing the card: {err}");
                         }
                     }
                 }
@@ -116,6 +122,7 @@ impl Application for VehikularSettings {
                 auto_open: false,
                 address: String::new(),
                 selected_reader: None,
+                status_message: None,
             },
             Command::none(),
         )

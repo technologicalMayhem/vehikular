@@ -16,7 +16,7 @@ pub enum Error {
     Http(#[from] reqwest::Error),
     #[error("Could not connect to card.")]
     ConectionFailure,
-    #[error("The card is not present anymore.")]
+    #[error("Reader indicates no card found.")]
     CardNotFound,
 }
 
@@ -70,6 +70,14 @@ impl Reader {
             rs.sync_current_state();
         }
 
+        let readers = self
+            .reader_states
+            .iter()
+            .map(|rs| format!("Name: {}; State: {:?};", rs.name().to_string_lossy(), rs.event_state()))
+            .collect::<Vec<String>>()
+            .join("\n         ");
+        info!("Readers:\n{readers}");
+
         Ok(())
     }
 
@@ -77,10 +85,10 @@ impl Reader {
         self.reader_states
             .iter()
             .filter_map(|rs| {
-                if rs.name() != PNP_NOTIFICATION() {
-                    Some(rs.name().to_string_lossy().to_string())
-                } else {
+                if rs.name() == PNP_NOTIFICATION() {
                     None
+                } else {
+                    Some(rs.name().to_string_lossy().to_string())
                 }
             })
             .collect()
@@ -90,11 +98,12 @@ impl Reader {
         let Some(reader) = self
             .reader_states
             .iter()
-            .position(|rs| rs.name().to_string_lossy().to_string() == reader)
+            .position(|rs| rs.name().to_string_lossy() == reader)
             .and_then(|index| self.reader_states.get(index))
         else {
             Err(Error::CardNotFound)?
         };
+        info!("Using reader: {}", reader.name().to_string_lossy());
 
         if reader.name() != PNP_NOTIFICATION()
             && reader.event_state().contains(State::PRESENT)

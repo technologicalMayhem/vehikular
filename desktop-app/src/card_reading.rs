@@ -6,7 +6,7 @@ use iso7816_tlv::{
 use log::debug;
 use pcsc::{Card, MAX_BUFFER_SIZE};
 use shared::data::Registration;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::card_reading::select_file::{retrieve_file, File};
