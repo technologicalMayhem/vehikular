@@ -68,8 +68,8 @@ impl Application for VehikularSettings {
         let actions = row![manual_upload].spacing(5);
 
         let message = match &self.status_message {
-            Some(message) => {message},
-            None => {""},
+            Some(message) => message,
+            None => "",
         };
         let status_message = text(message);
 
@@ -86,7 +86,7 @@ impl Application for VehikularSettings {
             Message::UploadCard => {
                 if let Some(reader) = &self.selected_reader {
                     match self.reader.process_reader(reader, &self.address) {
-                        Ok(_) => {}
+                        Ok(_) => self.status_message = Some("Finished uploading".to_string()),
                         Err(err) => {
                             error!("An error occured whilst processing the card: {err}");
                             self.status_message = Some(format!("An error occured: {err}"));
