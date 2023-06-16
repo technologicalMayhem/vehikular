@@ -24,6 +24,7 @@ pub enum Message {
     UploadCard,
     ViewCardLocal,
     ViewCardWeb,
+    RefreshReaders,
 }
 
 impl Application for VehikularSettings {
@@ -46,7 +47,8 @@ impl Application for VehikularSettings {
             self.selected_reader.clone(),
             Message::ChangeReader,
         );
-        let readers = row![reader_text, reader_dropdown]
+        let reader_refresh = button("Refresh readers").on_press(Message::RefreshReaders);
+        let readers = row![reader_text, reader_dropdown, reader_refresh]
             .spacing(5)
             .align_items(Alignment::Center);
 
@@ -98,11 +100,11 @@ impl Application for VehikularSettings {
             Message::ViewCardWeb => todo!(),
             Message::AddressChanged(address) => self.address = address,
             Message::ChangeReader(reader) => self.selected_reader = Some(reader),
+            Message::RefreshReaders => match self.reader.update_readers() {
+                Ok(_) => {},
+                Err(err) => self.status_message = Some(format!("Could not update readers: {err}")),
+            },
         };
-
-        self.reader
-            .update_readers()
-            .expect("there was an issue whilst updating readers");
 
         Command::none()
     }

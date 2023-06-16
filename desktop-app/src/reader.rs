@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use color_eyre::Result;
 use log::{error, info};
@@ -74,6 +74,9 @@ impl Reader {
         for rs in &mut self.reader_states {
             rs.sync_current_state();
         }
+
+        // Wait until the state changes.
+        self.ctx.get_status_change(Some(Duration::from_millis(10)), &mut self.reader_states)?;
 
         let readers = self
             .reader_states
