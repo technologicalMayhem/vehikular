@@ -76,7 +76,10 @@ impl Reader {
         }
 
         // Wait until the state changes.
-        self.ctx.get_status_change(Some(Duration::from_millis(10)), &mut self.reader_states)?;
+        match self.ctx.get_status_change(Some(Duration::from_millis(10)), &mut self.reader_states) {
+            Err(pcsc::Error::Timeout) | Ok(_) => {},
+            Err(err) => Err(err)?
+        };
 
         let readers = self
             .reader_states
