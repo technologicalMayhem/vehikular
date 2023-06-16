@@ -89,6 +89,7 @@ impl Application for VehikularSettings {
                         Ok(_) => {}
                         Err(err) => {
                             error!("An error occured whilst processing the card: {err}");
+                            self.status_message = Some(format!("An error occured: {err}"));
                         }
                     }
                 }
@@ -115,9 +116,11 @@ impl Application for VehikularSettings {
     }
 
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        let mut reader = Reader::new().expect("Could not create reader.");
+        reader.update_readers().expect("Could not read readers");
         (
             VehikularSettings {
-                reader: Reader::new().expect("Could not create reader."),
+                reader,
                 auto_upload: false,
                 auto_open: false,
                 address: String::new(),

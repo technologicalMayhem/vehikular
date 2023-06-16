@@ -18,6 +18,10 @@ pub enum Error {
     ConectionFailure,
     #[error("Reader indicates no card found.")]
     CardNotFound,
+    #[error("Attemted to use PNP notifcation as a reader")]
+    PnpNotficationAsReader,
+    #[error("The selected reader could not be found. Did you disconnect it?")]
+    ReaderNotFound,
 }
 
 pub struct Reader {
@@ -50,7 +54,8 @@ impl Reader {
         for rs in &self.reader_states {
             if Self::is_dead(rs) {
                 println!("Removing {:?}", rs.name());
-                self.have_been_read.remove(&rs.name().to_string_lossy().to_string());
+                self.have_been_read
+                    .remove(&rs.name().to_string_lossy().to_string());
             }
         }
         self.reader_states.retain(|rs| !Self::is_dead(rs));
@@ -101,35 +106,37 @@ impl Reader {
             .position(|rs| rs.name().to_string_lossy() == reader)
             .and_then(|index| self.reader_states.get(index))
         else {
-            Err(Error::CardNotFound)?
+            Err(Error::ReaderNotFound)?
         };
         info!("Using reader: {}", reader.name().to_string_lossy());
 
-        if reader.name() != PNP_NOTIFICATION()
-            && reader.event_state().contains(State::PRESENT)
-            && !self.have_been_read.contains(&reader.name().to_string_lossy().to_string())
-        {
-            // Connect to the card.
-            let card = match self
-                .ctx
-                .connect(reader.name(), ShareMode::Shared, Protocols::ANY)
-            {
-                Ok(card) => card,
-                Err(err) => {
-                    error!("Failed to connect to card: {err}");
-                    Err(Error::ConectionFailure)?
-                }
-            };
+        if reader.name() == PNP_NOTIFICATION() {
+            Err(Error::PnpNotficationAsReader)?;
+        }
 
-            info!("Found a card. Attempting read.");
-            match read_card(&card) {
-                Ok(registration) => {
-                    info!("Read successful. Uploading.");
-                    upload(&registration, upload_address)?;
-                }
-                Err(err) => {
-                    error!("Failed to read card. {err}");
-                }
+        if !reader.event_state().contains(State::PRESENT) {
+            Err(Error::CardNotFound)?;
+        }
+        // Connect to the card.
+        let card = match self
+            .ctx
+            .connect(reader.name(), ShareMode::Shared, Protocols::ANY)
+        {
+            Ok(card) => card,
+            Err(err) => {
+                error!("Failed to connect to card: {err}");
+                Err(Error::ConectionFailure)?
+            }
+        };
+
+        info!("Found a card. Attempting read.");
+        match read_card(&card) {
+            Ok(registration) => {
+                info!("Read successful. Uploading.");
+                upload(&registration, upload_address)?;
+            }
+            Err(err) => {
+                error!("Failed to read card. {err}");
             }
         }
 
