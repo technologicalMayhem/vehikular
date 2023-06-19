@@ -1,10 +1,11 @@
 #![allow(clippy::no_effect_underscore_binding)]
 use std::io::Cursor;
 
+use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
 use rocket::{
     http::{ContentType, Status},
-    response::{self, content::RawHtml, Responder},
+    response::{self, content::{RawHtml, RawCss}, Responder},
     serde::json::Json,
     tokio::sync::Mutex,
     Request, Response, State,
@@ -17,19 +18,24 @@ use thiserror::Error;
 #[macro_use]
 extern crate rocket;
 
-static INDEX: &str = include_str!("../templates/index.html");
+static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
+static STYLE: &str = include_str!("../webroot/style.css");
 
 lazy_static! {
     pub static ref TEMPLATES: Tera = {
         let mut tera = Tera::default();
 
-        match tera.add_raw_template("index", INDEX) {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("Encountered errors whilst loading templates: {e}");
-                std::process::exit(1);
+        for file in TEMPLATE_DIR.files() {
+            if let Some(filename) = file.path().file_stem() {
+                let filename = filename.to_string_lossy();
+                let template = String::from_utf8_lossy(file.contents());
+                let result = tera.add_raw_template(&filename, &template);
+                if let Err(e) = result {
+                    eprintln!("Encountered errors whilst loading templates: {e}");
+                    std::process::exit(1);
+                }
             }
-        };
+        }
 
         tera
     };
@@ -71,6 +77,11 @@ enum Error {
     TeraRendering(#[from] tera::Error),
 }
 
+#[get("/style.css")]
+fn get_style() -> RawCss<&'static str> {
+    RawCss(STYLE)
+}
+
 #[get("/registration/<reg_num>")]
 async fn get_registration(
     reg_num: &str,
@@ -89,7 +100,7 @@ async fn get_registration(
             TEMPLATES
                 .render("index", &context)
                 .map_err(Error::TeraRendering)
-                .map(|s| RawHtml(s)),
+                .map(RawHtml),
         )
     } else {
         None
@@ -212,6 +223,7 @@ fn rocket() -> _ {
     rocket::build().manage(Mutex::new(AppData::new())).mount(
         "/",
         routes![
+            get_style,
             get_status,
             get_registration,
             post_registration,

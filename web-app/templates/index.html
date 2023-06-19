@@ -1,3 +1,6 @@
+{% extends "base" %}
+{% block title %}{{ registration.registration_number }}{% endblock title %}
+{% block content %}
 <h1>{{ registration.registration_number }}</h1>
 <ul>
     <li>Issuer state: {{ registration.issuer_state }}</li>
@@ -7,31 +10,37 @@
     <li>Date of first registration: {{ registration.date_of_first_registration }}</li>
     <li>
         <h2>Personal Data</h2>
+        {% set p = registration.personal_data %}
         <ul>
             <li>
                 <h3>Certifacte Holder</h3>
+                {% set ch = p.certificate_holder %}
                 <ul>
-                    <li>Surname or business name: {{ registration.personal_data.certificate_holder.surname_or_business_name }}</li>
-                    <li>Other name or initials: {{ registration.personal_data.certificate_holder.other_name_or_initials }}</li>
-                    <li>Address: {{ registration.personal_data.certificate_holder.address }}</li>
+                    <li>Surname or business name: {{ ch.surname_or_business_name }}</li>
+                    <li>Other name or initials: {{ ch.other_name_or_initials }}</li>
+                    <li>Address: {{ ch.address }}</li>
                 </ul>
             </li>
-            <li>Vehicle owner: {{ registration.personal_data.vehicles_owner }}</li>
+            <li>Vehicle owner: {{ p.vehicles_owner }}</li>
         </ul>
     </li>
     <li>
         <h2>Vehicle</h2>
-        <ul>Make: {{ registration.vehicle.make }}</ul>
-        <ul>Vehicle type: {{ registration.vehicle.vehicle_type }}</ul>
-        <ul>Commercial descriptions: {{ registration.vehicle.commercial_descriptons }}</ul>
+        {% set v = registration.vehicle %}
+        <ul>
+            <li>Make: {{ v.make }}</li>
+            <li>Vehicle type: {{ v.vehicle_type }}</li>
+            <li>Commercial descriptions: {{ v.commercial_descriptons }}</li>
+        </ul>
     </li>
     <li>Vehicle identification number: {{ registration.vehicle_identification_number }}</li>
     <li>
         <h2>Mass</h2>
+        {% set m = registration.mass %}
         <ul>
-            <li>Maximum technically permissible laden mass: {{ registration.mass.maximum_technically_permissible_laden_mass }}</li>
-            <li>Maximum permissible laden mass of the vehicle in service: {{ registration.mass.maximum_permissible_laden_mass_of_the_vehicle_in_service }}</li>
-            <li>maximum permissible laden mass of the whole vehicle in service: {{ registration.mass.maximum_permissible_laden_mass_of_the_whole_vehicle_in_service }}</li>
+            <li>Maximum technically permissible laden mass: {{ m.maximum_technically_permissible_laden_mass }}</li>
+            <li>Maximum permissible laden mass of the vehicle in service: {{ m.maximum_permissible_laden_mass_of_the_vehicle_in_service }}</li>
+            <li>maximum permissible laden mass of the whole vehicle in service: {{ m.maximum_permissible_laden_mass_of_the_whole_vehicle_in_service }}</li>
         </ul>
     </li>
     <li>Vehicle mass with body: {{ registration.vehicle_mass_with_body }}</li>
@@ -40,26 +49,29 @@
     <li>Type approval number: {{ registration.type_approval_number }}</li>
     <li>
         <h2>Engine</h2>
+        {% set e = registration.engine %}
         <ul>
-            <li>Capacity: {{ registration.engine.capacity }}</li>
-            <li>Max net power: {{ registration.engine.max_net_power }}</li>
-            <li>Fuel type: {{ registration.engine.fuel_type }}</li>
+            <li>Capacity: {{ e.capacity }}</li>
+            <li>Max net power: {{ e.max_net_power }}</li>
+            <li>Fuel type: {{ e.fuel_type }}</li>
         </ul>
     </li>
     <li>Power weight ratio: {{ registration.power_weight_ratio }}</li>
     <li>
         <h2>Seating Capacity</h2>
+        {% set sc = registration.seating_capacity %}
         <ul>
-            <li>Number of seats: {{ registration.seating_capacity.number_of_seats }}</li>
-            <li>Number of standing places: {{ registration.seating_capacity.nunmber_of_standing_places }}</li>
+            <li>Number of seats: {{ sc.number_of_seats }}</li>
+            <li>Number of standing places: {{ sc.nunmber_of_standing_places }}</li>
         </ul>
     </li>
     <li>Vehicle category: {{ registration.vechicle_category }}</li>
     <li>
         <h2>Maximum Towable Mass</h2>
+        {% set mtm = registration.maximum_towable_mass %}
         <ul>
-            <li>Braked: {{ registration.maximum_towable_mass.braked }}</li>
-            <li>Unbraked: {{ registration.maximum_towable_mass.unbraked }}</li>
+            <li>Braked: {{ mtm.braked }}</li>
+            <li>Unbraked: {{ mtm.unbraked }}</li>
         </ul>
     </li>
     <li>Colour: {{ registration.colour }}</li>
@@ -71,3 +83,4 @@
         </ul>
     </li>
 </ul>
+{% endblock content %}
