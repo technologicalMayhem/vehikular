@@ -1,0 +1,73 @@
+<h1>{{ registration.registration_number }}</h1>
+<ul>
+    <li>Issuer state: {{ registration.issuer_state }}</li>
+    <li>Issuer authority: {{ registration.issuer_authority }}</li>
+    <li>Document number: {{ registration.document_number }}</li>
+    <li>Registration number: {{ registration.registration_number }}</li>
+    <li>Date of first registration: {{ registration.date_of_first_registration }}</li>
+    <li>
+        <h2>Personal Data</h2>
+        <ul>
+            <li>
+                <h3>Certifacte Holder</h3>
+                <ul>
+                    <li>Surname or business name: {{ registration.personal_data.certificate_holder.surname_or_business_name }}</li>
+                    <li>Other name or initials: {{ registration.personal_data.certificate_holder.other_name_or_initials }}</li>
+                    <li>Address: {{ registration.personal_data.certificate_holder.address }}</li>
+                </ul>
+            </li>
+            <li>Vehicle owner: {{ registration.personal_data.vehicles_owner }}</li>
+        </ul>
+    </li>
+    <li>
+        <h2>Vehicle</h2>
+        <ul>Make: {{ registration.vehicle.make }}</ul>
+        <ul>Vehicle type: {{ registration.vehicle.vehicle_type }}</ul>
+        <ul>Commercial descriptions: {{ registration.vehicle.commercial_descriptons }}</ul>
+    </li>
+    <li>Vehicle identification number: {{ registration.vehicle_identification_number }}</li>
+    <li>
+        <h2>Mass</h2>
+        <ul>
+            <li>Maximum technically permissible laden mass: {{ registration.mass.maximum_technically_permissible_laden_mass }}</li>
+            <li>Maximum permissible laden mass of the vehicle in service: {{ registration.mass.maximum_permissible_laden_mass_of_the_vehicle_in_service }}</li>
+            <li>maximum permissible laden mass of the whole vehicle in service: {{ registration.mass.maximum_permissible_laden_mass_of_the_whole_vehicle_in_service }}</li>
+        </ul>
+    </li>
+    <li>Vehicle mass with body: {{ registration.vehicle_mass_with_body }}</li>
+    <li>Period of validity: {{ registration.period_of_validity }}</li>
+    <li>Date of registration: {{ registration.date_of_registration }}</li>
+    <li>Type approval number: {{ registration.type_approval_number }}</li>
+    <li>
+        <h2>Engine</h2>
+        <ul>
+            <li>Capacity: {{ registration.engine.capacity }}</li>
+            <li>Max net power: {{ registration.engine.max_net_power }}</li>
+            <li>Fuel type: {{ registration.engine.fuel_type }}</li>
+        </ul>
+    </li>
+    <li>Power weight ratio: {{ registration.power_weight_ratio }}</li>
+    <li>
+        <h2>Seating Capacity</h2>
+        <ul>
+            <li>Number of seats: {{ registration.seating_capacity.number_of_seats }}</li>
+            <li>Number of standing places: {{ registration.seating_capacity.nunmber_of_standing_places }}</li>
+        </ul>
+    </li>
+    <li>Vehicle category: {{ registration.vechicle_category }}</li>
+    <li>
+        <h2>Maximum Towable Mass</h2>
+        <ul>
+            <li>Braked: {{ registration.maximum_towable_mass.braked }}</li>
+            <li>Unbraked: {{ registration.maximum_towable_mass.unbraked }}</li>
+        </ul>
+    </li>
+    <li>Colour: {{ registration.colour }}</li>
+    <li>Maximum speed: {{ registration.maximum_speed }}</li>
+    <li>
+        <h2>Exhaust Emisions</h2>
+        <ul>
+            <li>Environmental category: {{ registration.exhaust_emissions.environmental_category }}</li>
+        </ul>
+    </li>
+</ul>

@@ -35,6 +35,21 @@ fn main() -> Result<()> {
     let json = serde_json::to_string_pretty(&registration)?;
 
     println!("{json}");
+
+    upload(&registration, "localhost:8000")?;
+    Ok(())
+}
+
+fn upload(registration: &Registration, upload_address: &str) -> Result<(), reqwest::Error> {
+    let client = reqwest::blocking::ClientBuilder::new().build()?;
+    client
+        .post(format!("http://{upload_address}/registration"))
+        .json(&registration)
+        .send()?;
+    println!(
+        "Uploaded sucefully. Should be available under: http://{upload_address}/registration/{}",
+        registration.registration_number
+    );
     Ok(())
 }
 
