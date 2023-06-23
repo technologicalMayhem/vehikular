@@ -12,15 +12,17 @@ use rocket::{
         Responder,
     },
     serde::json::Json,
-    tokio::sync::Mutex,
     Request, Response, State,
 };
-use sea_orm::Database;
-use sea_orm_migration::{MigratorTrait, SchemaManager};
+use sea_orm::{ActiveValue, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm_migration::MigratorTrait;
+use sea_orm_migration::SchemaManager;
 use serde::{Deserialize, Serialize};
 use shared::data::Registration;
 use tera::{Context, Tera};
 use thiserror::Error;
+
+use entities::{car_registration, prelude::*};
 
 mod entities;
 mod migrator;
@@ -51,18 +53,6 @@ lazy_static! {
     };
 }
 
-struct AppData {
-    registrations: Vec<Registration>,
-}
-
-impl AppData {
-    fn new() -> Self {
-        Self {
-            registrations: vec![],
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct StatusData {
     pub is_debug: bool,
@@ -83,8 +73,14 @@ fn get_status() -> Json<StatusData> {
 
 #[derive(Debug, Error)]
 enum Error {
+    #[error("An error occured whilst trying to access the database: {0}")]
+    DatabaseError(#[from] sea_orm::error::DbErr),
     #[error("An error occured whilst rendering")]
     TeraRendering(#[from] tera::Error),
+    #[error("Could not convert database types to internal types: {0}")]
+    InternalConversionFailed(#[from] shared::data::Error),
+    #[error("An error occured whilst registering: {0}")]
+    RegistrationError(#[from] RegistrationError),
 }
 
 #[get("/style.css")]
@@ -95,16 +91,21 @@ fn get_style() -> RawCss<&'static str> {
 #[get("/registration/<reg_num>")]
 async fn get_registration(
     reg_num: &str,
-    state: &State<Mutex<AppData>>,
+    db: &State<DatabaseConnection>,
 ) -> Option<Result<RawHtml<String>, Error>> {
-    let data = state.lock().await;
-    let registration = data
-        .registrations
-        .iter()
-        .find(|reg| reg.registration_number == reg_num);
+    let db = db as &DatabaseConnection;
+    let registration = match db_get_registration(db, reg_num).await {
+        Ok(reg) => reg,
+        Err(e) => return Some(Err(e)),
+    };
+
     if let Some(registration) = registration {
+        let registration = match Registration::try_from(registration) {
+            Ok(reg) => reg,
+            Err(e) => return Some(Err(Error::InternalConversionFailed(e))),
+        };
         let mut context = Context::new();
-        context.insert("registration", registration);
+        context.insert("registration", &registration);
         //println!("{context:#?}");
         Some(
             TEMPLATES
@@ -120,72 +121,87 @@ async fn get_registration(
 #[post("/registration", format = "application/json", data = "<registration>")]
 async fn post_registration(
     registration: Json<Registration>,
-    state: &State<Mutex<AppData>>,
-) -> Result<RegistrationResult, RegistrationError> {
-    let mut lock = state.lock().await;
-    if lock
-        .registrations
-        .iter()
-        .any(|reg| reg.registration_number == registration.registration_number)
+    db: &State<DatabaseConnection>,
+) -> Result<RegistrationResult, Error> {
+    let db = db as &DatabaseConnection;
+
+    if db_get_registration(db, &registration.registration_number)
+        .await?
+        .is_some()
     {
-        Err(RegistrationError::AlreadyExists)
+        Err(RegistrationError::AlreadyExists)?
     } else {
-        lock.registrations.push(registration.0);
+        let model = car_registration::ActiveModel::from(registration.0);
+        car_registration::Entity::insert(model).exec(db).await?;
         Ok(RegistrationResult::NoContent)
     }
 }
 
-#[put("/registration", format = "application/json", data = "<registration>")]
+#[put(
+    "/registration",
+    format = "application/json",
+    data = "<new_registration>"
+)]
 async fn put_registration(
-    registration: Json<Registration>,
-    state: &State<Mutex<AppData>>,
-) -> Result<RegistrationResult, RegistrationError> {
-    let mut lock = state.lock().await;
-    if let Some(index) = lock
-        .registrations
-        .iter()
-        .position(|reg| reg.registration_number == registration.registration_number)
-    {
-        lock.registrations[index] = registration.0;
+    new_registration: Json<Registration>,
+    db: &State<DatabaseConnection>,
+) -> Result<RegistrationResult, Error> {
+    let registration = db_get_registration(db, &new_registration.registration_number).await?;
+    if let Some(old_registration) = registration {
+        let mut active_model: car_registration::ActiveModel = new_registration.0.into();
+        active_model.id = ActiveValue::Set(old_registration.id);
         Ok(RegistrationResult::NoContent)
     } else {
-        Err(RegistrationError::DoesNotExist)
+        Err(RegistrationError::DoesNotExist)?
     }
+}
+
+async fn db_get_registration(
+    db: &DatabaseConnection,
+    reg_num: &str,
+) -> Result<Option<car_registration::Model>, Error> {
+    CarRegistration::find()
+        .filter(car_registration::Column::RegistrationNumber.like(reg_num))
+        .one(db)
+        .await
+        .map_err(|e| Error::DatabaseError(e))
 }
 
 enum RegistrationResult {
     NoContent,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 enum RegistrationError {
+    #[error("A registration with that registration number already exists.")]
     AlreadyExists,
+    #[error("Can not update as no registration exits")]
     DoesNotExist,
 }
 
 impl ErrorResponder for Error {
     fn response(&self) -> (Status, String) {
-        match self {
-            Error::TeraRendering(tera_err) => (
-                Status::InternalServerError,
-                format!("Tera could not render the template: {tera_err:#?}"),
-            ),
-        }
+        (
+            match self {
+                Error::TeraRendering(_)
+                | Error::DatabaseError(_)
+                | Error::InternalConversionFailed(_) => Status::InternalServerError,
+                Error::RegistrationError(reg) => return reg.response(),
+            },
+            self.to_string(),
+        )
     }
 }
 
 impl ErrorResponder for RegistrationError {
     fn response(&self) -> (Status, String) {
-        match self {
-            RegistrationError::AlreadyExists => (
-                Status::Conflict,
-                "A registration with that registration number already exists.".to_string(),
-            ),
-            RegistrationError::DoesNotExist => (
-                Status::BadRequest,
-                "Can not update as no registration exits".to_string(),
-            ),
-        }
+        (
+            match self {
+                RegistrationError::AlreadyExists => Status::Conflict,
+                RegistrationError::DoesNotExist => Status::BadRequest,
+            },
+            self.to_string(),
+        )
     }
 }
 
@@ -241,10 +257,17 @@ async fn rocket() -> _ {
     };
 
     let schema_manager = SchemaManager::new(&db);
-    match Migrator::refresh(&db).await {
-        Ok(_) => {}
+    match Migrator::get_pending_migrations(&db).await {
+        Ok(migrations) => {
+            let result = Migrator::up(&db, Some(migrations.len() as u32)).await;
+
+            if let Err(e) = result {
+                eprintln!("Failed to get pending migrations: {e}");
+                std::process::exit(1);
+            }
+        }
         Err(e) => {
-            eprintln!("Failed to refresh database schema: {e}");
+            eprintln!("Failed to get pending migrations: {e}");
             std::process::exit(1);
         }
     };
@@ -258,7 +281,7 @@ async fn rocket() -> _ {
         std::process::exit(1);
     }
 
-    rocket::build().manage(Mutex::new(AppData::new())).mount(
+    rocket::build().manage(db).mount(
         "/",
         routes![
             get_style,
