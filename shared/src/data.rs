@@ -1,28 +1,31 @@
-use serde::{Serialize, Deserialize};
+use std::str::FromStr;
+
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Registration {
     // From registration A
-    pub issuer_state: String, // 9F33
-    pub issuer_authority: String, // 9F34
-    pub document_number: String, // 9F38
-    pub registration_number: String, // 81
+    pub issuer_state: String,               // 9F33
+    pub issuer_authority: String,           // 9F34
+    pub document_number: String,            // 9F38
+    pub registration_number: String,        // 81
     pub date_of_first_registration: String, // 82
     pub personal_data: PersonalData,
     pub vehicle: Vehicle,
     pub vehicle_identification_number: String, // 8A
     pub mass: Mass,
     pub vehicle_mass_with_body: String, // 8C
-    pub period_of_validity: String, // 8D
-    pub date_of_registration: String, // 8E
-    pub type_approval_number: String, // 8F
+    pub period_of_validity: String,     // 8D
+    pub date_of_registration: String,   // 8E
+    pub type_approval_number: String,   // 8F
     pub engine: Engine,
     pub power_weight_ratio: String, // 93
     pub seating_capacity: SeatingCapacity,
     // From registration B
     pub vechicle_category: String, // 98
     pub maximum_towable_mass: MaximumTowableMass,
-    pub colour: String, // 9F24
+    pub colour: String,        // 9F24
     pub maximum_speed: String, // 25
     pub exhaust_emissions: ExhaustEmisions,
 }
@@ -31,27 +34,27 @@ pub struct Registration {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersonalData {
     pub certificate_holder: CertificateHolder,
-    pub vehicles_owner: VehicleOwner // 86
+    pub vehicles_owner: VehicleOwner, // 86
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VehicleOwner {
     Yes,
     No,
-    Unknown
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CertificateHolder {
     pub surname_or_business_name: String, // 83
-    pub other_name_or_initials: String, // 84
-    pub address: String, // 85
+    pub other_name_or_initials: String,   // 84
+    pub address: String,                  // 85
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vehicle {
-    pub make: String, // 87
-    pub vehicle_type: String, // 88
+    pub make: String,                   // 87
+    pub vehicle_type: String,           // 88
     pub commercial_descriptons: String, // 89
 }
 
@@ -66,24 +69,61 @@ pub struct Mass {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
-    pub capacity: String, // 90
+    pub capacity: String,      // 90
     pub max_net_power: String, // 91
-    pub fuel_type: String, // 92
+    pub fuel_type: String,     // 92
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SeatingCapacity {
-    pub number_of_seats: String, // 94
+    pub number_of_seats: String,            // 94
     pub nunmber_of_standing_places: String, // 95
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaximumTowableMass {
-    pub braked: String, // 9B
+    pub braked: String,   // 9B
     pub unbraked: String, // 9C
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExhaustEmisions {
     pub environmental_category: String, // 9F31
+}
+
+impl ToString for VehicleOwner {
+    fn to_string(&self) -> String {
+        match self {
+            VehicleOwner::Yes => "Yes".into(),
+            VehicleOwner::No => "No".into(),
+            VehicleOwner::Unknown => "Unknown".into(),
+        }
+    }
+}
+
+impl FromStr for VehicleOwner {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Yes" => Ok(VehicleOwner::Yes),
+            "No" => Ok(VehicleOwner::No),
+            "Unknown" => Ok(VehicleOwner::Unknown),
+            _ => Err(Error::NotAVariant),
+        }
+    }
+}
+
+impl TryFrom<String> for VehicleOwner {
+    type Error = Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("The given string does not correspond to any variant.")]
+    NotAVariant,
 }

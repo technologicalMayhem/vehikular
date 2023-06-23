@@ -3,17 +3,27 @@ use std::io::Cursor;
 
 use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
+use migrator::Migrator;
 use rocket::{
     http::{ContentType, Status},
-    response::{self, content::{RawHtml, RawCss}, Responder},
+    response::{
+        self,
+        content::{RawCss, RawHtml},
+        Responder,
+    },
     serde::json::Json,
     tokio::sync::Mutex,
     Request, Response, State,
 };
+use sea_orm::Database;
+use sea_orm_migration::{MigratorTrait, SchemaManager};
 use serde::{Deserialize, Serialize};
 use shared::data::Registration;
 use tera::{Context, Tera};
 use thiserror::Error;
+
+mod entities;
+mod migrator;
 
 #[macro_use]
 extern crate rocket;
@@ -218,8 +228,36 @@ impl<'r> Responder<'r, 'static> for RegistrationResult {
     }
 }
 
+const DATABASE_URL: &str = "postgres://vehikular:vehikular@localhost:5432/vehikular";
+
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
+    let db = match Database::connect(DATABASE_URL).await {
+        Ok(db) => db,
+        Err(e) => {
+            eprint!("Failed to connect to database ({DATABASE_URL}): {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let schema_manager = SchemaManager::new(&db);
+    match Migrator::refresh(&db).await {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to refresh database schema: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    if !schema_manager
+        .has_table("car_registration")
+        .await
+        .unwrap_or(false)
+    {
+        eprintln!("No car_registration table found. Something went wrong with the database.");
+        std::process::exit(1);
+    }
+
     rocket::build().manage(Mutex::new(AppData::new())).mount(
         "/",
         routes![
