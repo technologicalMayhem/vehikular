@@ -28,9 +28,9 @@ pub struct Model {
     pub make: String,
     pub vehicle_type: String,
     pub commercial_descriptons: String,
-    pub maximum_technically_permissible_laden_mass: String,
-    pub maximum_permissible_laden_mass_of_the_vehicle_in_service: String,
-    pub maximum_permissible_laden_mass_of_the_whole_vehicle_in_service: String,
+    pub maximum_technically_laden_mass: String,
+    pub maximum_laden_mass_of_the_vehicle_in_service: String,
+    pub maximum_laden_mass_of_the_whole_vehicle_in_service: String,
     pub capacity: String,
     pub max_net_power: String,
     pub fuel_type: String,
@@ -42,6 +42,15 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::maintenance_history::Entity")]
+    MaintenanceHistory,
+}
+
+impl Related<super::maintenance_history::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MaintenanceHistory.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

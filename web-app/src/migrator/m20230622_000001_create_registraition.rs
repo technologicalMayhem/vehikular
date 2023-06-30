@@ -4,7 +4,7 @@ pub struct Migration;
 
 impl MigrationName for Migration {
     fn name(&self) -> &str {
-        "m20230622_000001_create_registraition"
+        file!()
     }
 }
 
@@ -45,9 +45,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(CarRegistration::Make).string().not_null())
                     .col(ColumnDef::new(CarRegistration::VehicleType).string().not_null())
                     .col(ColumnDef::new(CarRegistration::CommercialDescriptons).string().not_null())
-                    .col(ColumnDef::new(CarRegistration::MaximumTechnicallyPermissibleLadenMass).string().not_null())
-                    .col(ColumnDef::new(CarRegistration::MaximumPermissibleLadenMassOfTheVehicleInService,).string().not_null())
-                    .col(ColumnDef::new(CarRegistration::MaximumPermissibleLadenMassOfTheWholeVehicleInService,).string().not_null())
+                    .col(ColumnDef::new(CarRegistration::MaximumTechnicallyLadenMass).string().not_null())
+                    .col(ColumnDef::new(CarRegistration::MaximumLadenMassOfTheVehicleInService,).string().not_null())
+                    .col(ColumnDef::new(CarRegistration::MaximumLadenMassOfTheWholeVehicleInService,).string().not_null())
                     .col(ColumnDef::new(CarRegistration::Capacity).string().not_null())
                     .col(ColumnDef::new(CarRegistration::MaxNetPower).string().not_null())
                     .col(ColumnDef::new(CarRegistration::FuelType).string().not_null())
@@ -94,9 +94,9 @@ pub enum CarRegistration {
     Make,
     VehicleType,
     CommercialDescriptons,
-    MaximumTechnicallyPermissibleLadenMass,
-    MaximumPermissibleLadenMassOfTheVehicleInService,
-    MaximumPermissibleLadenMassOfTheWholeVehicleInService,
+    MaximumTechnicallyLadenMass,
+    MaximumLadenMassOfTheVehicleInService,
+    MaximumLadenMassOfTheWholeVehicleInService,
     Capacity,
     MaxNetPower,
     FuelType,

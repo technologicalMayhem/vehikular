@@ -3,5 +3,6 @@
 pub mod prelude;
 
 pub mod car_registration;
+pub mod maintenance_history;
 
 pub mod convert;

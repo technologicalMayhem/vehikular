@@ -44,15 +44,15 @@ impl From<Registration> for CarRegActiveModel {
             make: sea_orm::ActiveValue::Set(value.vehicle.make),
             vehicle_type: sea_orm::ActiveValue::Set(value.vehicle.vehicle_type),
             commercial_descriptons: sea_orm::ActiveValue::Set(value.vehicle.commercial_descriptons),
-            maximum_technically_permissible_laden_mass: sea_orm::ActiveValue::Set(
+            maximum_technically_laden_mass: sea_orm::ActiveValue::Set(
                 value.mass.maximum_technically_permissible_laden_mass,
             ),
-            maximum_permissible_laden_mass_of_the_vehicle_in_service: sea_orm::ActiveValue::Set(
+            maximum_laden_mass_of_the_vehicle_in_service: sea_orm::ActiveValue::Set(
                 value
                     .mass
                     .maximum_permissible_laden_mass_of_the_vehicle_in_service,
             ),
-            maximum_permissible_laden_mass_of_the_whole_vehicle_in_service:
+            maximum_laden_mass_of_the_whole_vehicle_in_service:
                 sea_orm::ActiveValue::Set(
                     value
                         .mass
@@ -100,11 +100,11 @@ impl TryFrom<CarRegModel> for Registration {
             vehicle_identification_number: value.vehicle_identification_number,
             mass: Mass {
                 maximum_technically_permissible_laden_mass: value
-                    .maximum_technically_permissible_laden_mass,
+                    .maximum_technically_laden_mass,
                 maximum_permissible_laden_mass_of_the_vehicle_in_service: value
-                    .maximum_permissible_laden_mass_of_the_vehicle_in_service,
+                    .maximum_laden_mass_of_the_vehicle_in_service,
                 maximum_permissible_laden_mass_of_the_whole_vehicle_in_service: value
-                    .maximum_permissible_laden_mass_of_the_whole_vehicle_in_service,
+                    .maximum_laden_mass_of_the_whole_vehicle_in_service,
             },
             vehicle_mass_with_body: value.vehicle_mass_with_body,
             period_of_validity: value.period_of_validity,

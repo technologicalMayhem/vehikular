@@ -5217,6 +5217,7 @@ dependencies = [
 name = "web-app"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "include_dir",
  "lazy_static",
  "rocket",
@@ -5227,6 +5228,7 @@ dependencies = [
  "shared",
  "tera",
  "thiserror",
+ "time 0.3.22",
 ]
 
 [[package]]

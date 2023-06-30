@@ -1,20 +1,26 @@
 #![allow(clippy::no_effect_underscore_binding)]
-use std::io::Cursor;
+use std::{io::Cursor, str::FromStr};
 
+use chrono::{Local, NaiveDate, NaiveTime};
 use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
 use migrator::Migrator;
 use rocket::{
+    form::{Form, Strict},
     http::{ContentType, Status},
+    log::private::info,
     response::{
         self,
         content::{RawCss, RawHtml},
-        Responder,
+        Responder, Redirect, status::NotFound,
     },
     serde::json::Json,
     Request, Response, State,
 };
-use sea_orm::{ActiveValue, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    prelude::ChronoDateTime, ActiveValue, ColumnTrait, Database, DatabaseConnection, EntityTrait,
+    QueryFilter,
+};
 use sea_orm_migration::MigratorTrait;
 use sea_orm_migration::SchemaManager;
 use serde::{Deserialize, Serialize};
@@ -22,7 +28,11 @@ use shared::data::Registration;
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use entities::{car_registration, prelude::*};
+use entities::{
+    car_registration,
+    maintenance_history::{self, ActiveModel},
+    prelude::*,
+};
 
 mod entities;
 mod migrator;
@@ -81,6 +91,10 @@ enum Error {
     InternalConversionFailed(#[from] shared::data::Error),
     #[error("An error occured whilst registering: {0}")]
     RegistrationError(#[from] RegistrationError),
+    #[error("Failed to parse date. Was it the first one: {0}")]
+    DateParseFailure(bool),
+    #[error("No car with {0} as it's registration could be found.")]
+    RegistrationNotFound(String)
 }
 
 #[get("/style.css")]
@@ -94,18 +108,19 @@ async fn get_registration(
     db: &State<DatabaseConnection>,
 ) -> Option<Result<RawHtml<String>, Error>> {
     let db = db as &DatabaseConnection;
-    let registration = match db_get_registration(db, reg_num).await {
+    let registration = match db_get_registration_with_history(db, reg_num).await {
         Ok(reg) => reg,
         Err(e) => return Some(Err(e)),
     };
 
-    if let Some(registration) = registration {
+    if let Some((registration, history)) = registration {
         let registration = match Registration::try_from(registration) {
             Ok(reg) => reg,
             Err(e) => return Some(Err(Error::InternalConversionFailed(e))),
         };
         let mut context = Context::new();
         context.insert("registration", &registration);
+        context.insert("history", &history);
         //println!("{context:#?}");
         Some(
             TEMPLATES
@@ -156,6 +171,46 @@ async fn put_registration(
     }
 }
 
+#[derive(Debug, FromForm)]
+struct NewMaintenanceItemForm<'r> {
+    registration_number: &'r str,
+    datetime: time::PrimitiveDateTime,
+    subject: &'r str,
+    body: &'r str,
+    mileage: i32,
+}
+
+#[post("/maintenance", data = "<form>")]
+async fn post_maintenance_item(
+    form: Form<NewMaintenanceItemForm<'_>>,
+    db: &State<DatabaseConnection>,
+) -> Result<Redirect, Error> {
+    let db = db as &DatabaseConnection;
+    let registration = db_get_registration(db, form.registration_number).await?;
+    if let Some(registration) = registration {
+        let date_time = chrono::naive::NaiveDateTime::from_timestamp_millis(
+            form.datetime.assume_utc().unix_timestamp() * 1000,
+        )
+        .ok_or(Error::DateParseFailure(false))?;
+        let maintenance_item = ActiveModel {
+            id: ActiveValue::NotSet,
+            car_id: ActiveValue::Set(registration.id),
+            date_time: ActiveValue::Set(date_time),
+            subject: ActiveValue::Set(form.subject.into()),
+            body: ActiveValue::Set(form.body.into()),
+            mileage: ActiveValue::Set(Some(form.mileage)),
+        };
+
+        maintenance_history::Entity::insert(maintenance_item)
+            .exec(db)
+            .await?;
+
+        Ok(Redirect::to(uri!(get_registration(form.registration_number))))
+    } else {
+        Err(Error::RegistrationNotFound(form.registration_number.into()))
+    }
+}
+
 async fn db_get_registration(
     db: &DatabaseConnection,
     reg_num: &str,
@@ -164,7 +219,20 @@ async fn db_get_registration(
         .filter(car_registration::Column::RegistrationNumber.like(reg_num))
         .one(db)
         .await
-        .map_err(|e| Error::DatabaseError(e))
+        .map_err(Error::DatabaseError)
+}
+
+async fn db_get_registration_with_history(
+    db: &DatabaseConnection,
+    reg_num: &str,
+) -> Result<Option<(car_registration::Model, Vec<maintenance_history::Model>)>, Error> {
+    CarRegistration::find()
+        .filter(car_registration::Column::RegistrationNumber.like(reg_num))
+        .find_with_related(maintenance_history::Entity)
+        .all(db)
+        .await
+        .map(|mut r| r.pop())
+        .map_err(Error::DatabaseError)
 }
 
 enum RegistrationResult {
@@ -185,7 +253,9 @@ impl ErrorResponder for Error {
             match self {
                 Error::TeraRendering(_)
                 | Error::DatabaseError(_)
+                | Error::DateParseFailure(_)
                 | Error::InternalConversionFailed(_) => Status::InternalServerError,
+                Error::RegistrationNotFound(_) => Status::NotFound,
                 Error::RegistrationError(reg) => return reg.response(),
             },
             self.to_string(),
@@ -288,7 +358,8 @@ async fn rocket() -> _ {
             get_status,
             get_registration,
             post_registration,
-            put_registration
+            put_registration,
+            post_maintenance_item
         ],
     )
 }
