@@ -12,14 +12,15 @@ use rocket::{
     response::{
         self,
         content::{RawCss, RawHtml},
-        Responder, Redirect, status::NotFound,
+        status::NotFound,
+        Redirect, Responder,
     },
     serde::json::Json,
     Request, Response, State,
 };
 use sea_orm::{
-    prelude::ChronoDateTime, ActiveValue, ColumnTrait, Database, DatabaseConnection, EntityTrait,
-    QueryFilter,
+    prelude::ChronoDateTime, ActiveModelTrait, ActiveValue, ColumnTrait, Database,
+    DatabaseConnection, EntityTrait, ModelTrait, QueryFilter,
 };
 use sea_orm_migration::MigratorTrait;
 use sea_orm_migration::SchemaManager;
@@ -32,6 +33,7 @@ use entities::{
     car_registration,
     maintenance_history::{self, ActiveModel},
     prelude::*,
+    vehicle_notes,
 };
 
 mod entities;
@@ -94,7 +96,7 @@ enum Error {
     #[error("Failed to parse date. Was it the first one: {0}")]
     DateParseFailure(bool),
     #[error("No car with {0} as it's registration could be found.")]
-    RegistrationNotFound(String)
+    RegistrationNotFound(String),
 }
 
 #[get("/style.css")]
@@ -106,31 +108,23 @@ fn get_style() -> RawCss<&'static str> {
 async fn get_registration(
     reg_num: &str,
     db: &State<DatabaseConnection>,
-) -> Option<Result<RawHtml<String>, Error>> {
+) -> Result<RawHtml<String>, Error> {
     let db = db as &DatabaseConnection;
-    let registration = match db_get_registration_with_history(db, reg_num).await {
+    let (registration, notes, history) = db_get_registration_with_history_and_notes(db, reg_num).await?;
+    
+    let registration = match Registration::try_from(registration) {
         Ok(reg) => reg,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Err(Error::InternalConversionFailed(e)),
     };
+    let mut context = Context::new();
+    context.insert("registration", &registration);
+    context.insert("notes", &notes);
+    context.insert("history", &history);
 
-    if let Some((registration, history)) = registration {
-        let registration = match Registration::try_from(registration) {
-            Ok(reg) => reg,
-            Err(e) => return Some(Err(Error::InternalConversionFailed(e))),
-        };
-        let mut context = Context::new();
-        context.insert("registration", &registration);
-        context.insert("history", &history);
-        //println!("{context:#?}");
-        Some(
-            TEMPLATES
-                .render("index", &context)
-                .map_err(Error::TeraRendering)
-                .map(RawHtml),
-        )
-    } else {
-        None
-    }
+    TEMPLATES
+        .render("index", &context)
+        .map_err(Error::TeraRendering)
+        .map(RawHtml)
 }
 
 #[post("/registration", format = "application/json", data = "<registration>")]
@@ -205,10 +199,29 @@ async fn post_maintenance_item(
             .exec(db)
             .await?;
 
-        Ok(Redirect::to(uri!(get_registration(form.registration_number))))
+        Ok(Redirect::to(uri!(get_registration(
+            form.registration_number
+        ))))
     } else {
         Err(Error::RegistrationNotFound(form.registration_number.into()))
     }
+}
+
+#[derive(FromForm)]
+struct UpdateNotesForm<'r> {
+    registration_number: &'r str,
+    body: &'r str,
+}
+
+#[post("/updateNotes", data = "<form>")]
+async fn update_notes(
+    form: Form<UpdateNotesForm<'_>>,
+    db: &State<DatabaseConnection>,
+) -> Result<Redirect, Error> {
+    db_update_or_insert_notes(db, form.registration_number, form.body).await?;
+    Ok(Redirect::to(uri!(get_registration(
+        form.registration_number
+    ))))
 }
 
 async fn db_get_registration(
@@ -222,17 +235,68 @@ async fn db_get_registration(
         .map_err(Error::DatabaseError)
 }
 
-async fn db_get_registration_with_history(
+async fn db_get_registration_with_history_and_notes(
     db: &DatabaseConnection,
     reg_num: &str,
-) -> Result<Option<(car_registration::Model, Vec<maintenance_history::Model>)>, Error> {
-    CarRegistration::find()
+) -> Result<
+    (
+        car_registration::Model,
+        Option<vehicle_notes::Model>,
+        Vec<maintenance_history::Model>,
+    ),
+    Error,
+> {
+    let registration = CarRegistration::find()
         .filter(car_registration::Column::RegistrationNumber.like(reg_num))
-        .find_with_related(maintenance_history::Entity)
+        .one(db)
+        .await?
+        .ok_or_else(|| Error::RegistrationNotFound(reg_num.into()))?;
+
+    let notes = registration.find_related(VehicleNotes).one(db).await?;
+    let history = registration
+        .find_related(MaintenanceHistory)
         .all(db)
-        .await
-        .map(|mut r| r.pop())
-        .map_err(Error::DatabaseError)
+        .await?;
+
+    Ok((registration, notes, history))
+}
+
+async fn db_update_or_insert_notes(
+    db: &DatabaseConnection,
+    reg_num: &str,
+    notes: &str,
+) -> Result<(), Error> {
+    info!("Get registration");
+    let Some(registration) = db_get_registration(db, reg_num).await? else {
+        return Err(Error::RegistrationNotFound(reg_num.into()));
+    };
+    info!("Find vehicle notes");
+    match VehicleNotes::find()
+        .filter(vehicle_notes::Column::CarId.eq(registration.id))
+        .one(db)
+        .await?
+    {
+        Some(db_notes) => {
+            info!("Found some updating");
+            let notes = vehicle_notes::ActiveModel {
+                id: ActiveValue::Unchanged(db_notes.id),
+                body: ActiveValue::Set(notes.into()),
+                ..Default::default()
+            };
+            notes.update(db).await?;
+        }
+        None => {
+            info!("Found none, inserting");
+            let notes = vehicle_notes::ActiveModel {
+                car_id: ActiveValue::Set(registration.id),
+                body: ActiveValue::Set(notes.into()),
+                ..Default::default()
+            };
+            notes.insert(db).await?;
+        }
+    }
+
+    Ok(())
 }
 
 enum RegistrationResult {
@@ -359,7 +423,8 @@ async fn rocket() -> _ {
             get_registration,
             post_registration,
             put_registration,
-            post_maintenance_item
+            post_maintenance_item,
+            update_notes,
         ],
     )
 }

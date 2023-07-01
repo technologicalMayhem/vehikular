@@ -88,6 +88,14 @@
     </ul>
 </div>
 <div>
+    <h1>Notes</h1>
+    <form action="/updateNotes" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="registration_number" value="{{ registration.registration_number }}"/>
+        <textarea name="body">{{ notes.body }}</textarea>
+        <div><input type="submit" value="Update Notes" /></div>
+    </form>
+</div>
+<div>
     <h1>Maintenance history</h1>
     <ul>
         {% for item in history %}

@@ -2,3 +2,4 @@
 
 pub use super::car_registration::Entity as CarRegistration;
 pub use super::maintenance_history::Entity as MaintenanceHistory;
+pub use super::vehicle_notes::Entity as VehicleNotes;
