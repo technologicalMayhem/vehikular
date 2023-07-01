@@ -93,8 +93,8 @@
         {% for item in history %}
         <li>
             <h2>{{ item.subject }}</h2>
-            <i>Done on {{ item.date_time }}</i>
-            <i>{{ item.mileage }}</i>
+            <div><i>Done on {{ item.date_time }}</i></div>
+            <div><i>Mileage at change {{ item.mileage }}</i></div>
             <div>{{ item.body }}</div>
         </li>
         {% endfor %}
