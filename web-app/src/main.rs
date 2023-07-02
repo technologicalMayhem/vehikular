@@ -1,42 +1,33 @@
 #![allow(clippy::no_effect_underscore_binding)]
-use std::{io::Cursor, str::FromStr};
-
-use chrono::{Local, NaiveDate, NaiveTime};
 use include_dir::{include_dir, Dir};
 use lazy_static::lazy_static;
 use migrator::Migrator;
 use rocket::{
-    form::{Form, Strict},
-    http::{ContentType, Status},
-    log::private::info,
+    form::Form,
     response::{
-        self,
         content::{RawCss, RawHtml},
-        status::NotFound,
-        Redirect, Responder,
+        Redirect,
     },
     serde::json::Json,
-    Request, Response, State,
+    State,
 };
-use sea_orm::{
-    prelude::ChronoDateTime, ActiveModelTrait, ActiveValue, ColumnTrait, Database,
-    DatabaseConnection, EntityTrait, ModelTrait, QueryFilter,
-};
+use sea_orm::{ActiveValue, Database, DatabaseConnection, EntityTrait};
 use sea_orm_migration::MigratorTrait;
-use sea_orm_migration::SchemaManager;
-use serde::{Deserialize, Serialize};
 use shared::data::Registration;
 use tera::{Context, Tera};
-use thiserror::Error;
 
-use entities::{
-    car_registration,
-    maintenance_history::{self, ActiveModel},
-    prelude::*,
-    vehicle_notes,
+use database::{
+    entities::{
+        car_registration,
+        maintenance_history::{self, ActiveModel},
+    },
+    get_registration as db_get_registration, get_registration_with_history_and_notes,
+    update_or_insert_notes,
 };
+use error::{Error, RegistrationError, RegistrationResult};
 
-mod entities;
+mod database;
+mod error;
 mod migrator;
 
 #[macro_use]
@@ -65,40 +56,6 @@ lazy_static! {
     };
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct StatusData {
-    pub is_debug: bool,
-}
-
-impl StatusData {
-    fn new() -> Self {
-        StatusData {
-            is_debug: cfg!(debug_assertions),
-        }
-    }
-}
-
-#[get("/status")]
-fn get_status() -> Json<StatusData> {
-    Json(StatusData::new())
-}
-
-#[derive(Debug, Error)]
-enum Error {
-    #[error("An error occured whilst trying to access the database: {0}")]
-    DatabaseError(#[from] sea_orm::error::DbErr),
-    #[error("An error occured whilst rendering")]
-    TeraRendering(#[from] tera::Error),
-    #[error("Could not convert database types to internal types: {0}")]
-    InternalConversionFailed(#[from] shared::data::Error),
-    #[error("An error occured whilst registering: {0}")]
-    RegistrationError(#[from] RegistrationError),
-    #[error("Failed to parse date. Was it the first one: {0}")]
-    DateParseFailure(bool),
-    #[error("No car with {0} as it's registration could be found.")]
-    RegistrationNotFound(String),
-}
-
 #[get("/style.css")]
 fn get_style() -> RawCss<&'static str> {
     RawCss(STYLE)
@@ -110,8 +67,9 @@ async fn get_registration(
     db: &State<DatabaseConnection>,
 ) -> Result<RawHtml<String>, Error> {
     let db = db as &DatabaseConnection;
-    let (registration, notes, history) = db_get_registration_with_history_and_notes(db, reg_num).await?;
-    
+    let (registration, notes, history) =
+        get_registration_with_history_and_notes(db, reg_num).await?;
+
     let registration = match Registration::try_from(registration) {
         Ok(reg) => reg,
         Err(e) => return Err(Error::InternalConversionFailed(e)),
@@ -218,164 +176,10 @@ async fn update_notes(
     form: Form<UpdateNotesForm<'_>>,
     db: &State<DatabaseConnection>,
 ) -> Result<Redirect, Error> {
-    db_update_or_insert_notes(db, form.registration_number, form.body).await?;
+    update_or_insert_notes(db, form.registration_number, form.body).await?;
     Ok(Redirect::to(uri!(get_registration(
         form.registration_number
     ))))
-}
-
-async fn db_get_registration(
-    db: &DatabaseConnection,
-    reg_num: &str,
-) -> Result<Option<car_registration::Model>, Error> {
-    CarRegistration::find()
-        .filter(car_registration::Column::RegistrationNumber.like(reg_num))
-        .one(db)
-        .await
-        .map_err(Error::DatabaseError)
-}
-
-async fn db_get_registration_with_history_and_notes(
-    db: &DatabaseConnection,
-    reg_num: &str,
-) -> Result<
-    (
-        car_registration::Model,
-        Option<vehicle_notes::Model>,
-        Vec<maintenance_history::Model>,
-    ),
-    Error,
-> {
-    let registration = CarRegistration::find()
-        .filter(car_registration::Column::RegistrationNumber.like(reg_num))
-        .one(db)
-        .await?
-        .ok_or_else(|| Error::RegistrationNotFound(reg_num.into()))?;
-
-    let notes = registration.find_related(VehicleNotes).one(db).await?;
-    let history = registration
-        .find_related(MaintenanceHistory)
-        .all(db)
-        .await?;
-
-    Ok((registration, notes, history))
-}
-
-async fn db_update_or_insert_notes(
-    db: &DatabaseConnection,
-    reg_num: &str,
-    notes: &str,
-) -> Result<(), Error> {
-    info!("Get registration");
-    let Some(registration) = db_get_registration(db, reg_num).await? else {
-        return Err(Error::RegistrationNotFound(reg_num.into()));
-    };
-    info!("Find vehicle notes");
-    match VehicleNotes::find()
-        .filter(vehicle_notes::Column::CarId.eq(registration.id))
-        .one(db)
-        .await?
-    {
-        Some(db_notes) => {
-            info!("Found some updating");
-            let notes = vehicle_notes::ActiveModel {
-                id: ActiveValue::Unchanged(db_notes.id),
-                body: ActiveValue::Set(notes.into()),
-                ..Default::default()
-            };
-            notes.update(db).await?;
-        }
-        None => {
-            info!("Found none, inserting");
-            let notes = vehicle_notes::ActiveModel {
-                car_id: ActiveValue::Set(registration.id),
-                body: ActiveValue::Set(notes.into()),
-                ..Default::default()
-            };
-            notes.insert(db).await?;
-        }
-    }
-
-    Ok(())
-}
-
-enum RegistrationResult {
-    NoContent,
-}
-
-#[derive(Debug, Error)]
-enum RegistrationError {
-    #[error("A registration with that registration number already exists.")]
-    AlreadyExists,
-    #[error("Can not update as no registration exits")]
-    DoesNotExist,
-}
-
-impl ErrorResponder for Error {
-    fn response(&self) -> (Status, String) {
-        (
-            match self {
-                Error::TeraRendering(_)
-                | Error::DatabaseError(_)
-                | Error::DateParseFailure(_)
-                | Error::InternalConversionFailed(_) => Status::InternalServerError,
-                Error::RegistrationNotFound(_) => Status::NotFound,
-                Error::RegistrationError(reg) => return reg.response(),
-            },
-            self.to_string(),
-        )
-    }
-}
-
-impl ErrorResponder for RegistrationError {
-    fn response(&self) -> (Status, String) {
-        (
-            match self {
-                RegistrationError::AlreadyExists => Status::Conflict,
-                RegistrationError::DoesNotExist => Status::BadRequest,
-            },
-            self.to_string(),
-        )
-    }
-}
-
-trait ErrorResponder {
-    fn response(&self) -> (Status, String);
-}
-
-#[rocket::async_trait]
-impl<'r> Responder<'r, 'static> for Error {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-        let (status, body) = self.response();
-        Response::build()
-            .status(status)
-            .header(ContentType::Plain)
-            .sized_body(body.len(), Cursor::new(body))
-            .ok()
-    }
-}
-
-#[rocket::async_trait]
-impl<'r> Responder<'r, 'static> for RegistrationError {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-        let (status, body) = self.response();
-        Response::build()
-            .status(status)
-            .header(ContentType::Plain)
-            .sized_body(body.len(), Cursor::new(body))
-            .ok()
-    }
-}
-
-impl<'r> Responder<'r, 'static> for RegistrationResult {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
-        match self {
-            RegistrationResult::NoContent => Response::build()
-                .status(Status::NoContent)
-                .header(ContentType::Plain)
-                .ok(),
-        }
-    }
 }
 
 const DATABASE_URL: &str = "postgres://vehikular:vehikular@localhost:5432/vehikular";
@@ -390,13 +194,12 @@ async fn rocket() -> _ {
         }
     };
 
-    let schema_manager = SchemaManager::new(&db);
     match Migrator::get_pending_migrations(&db).await {
         Ok(migrations) => {
             let result = Migrator::up(&db, Some(migrations.len() as u32)).await;
 
             if let Err(e) = result {
-                eprintln!("Failed to get pending migrations: {e}");
+                eprintln!("Failed to apply pending migrations: {e}");
                 std::process::exit(1);
             }
         }
@@ -406,20 +209,10 @@ async fn rocket() -> _ {
         }
     };
 
-    if !schema_manager
-        .has_table("car_registration")
-        .await
-        .unwrap_or(false)
-    {
-        eprintln!("No car_registration table found. Something went wrong with the database.");
-        std::process::exit(1);
-    }
-
     rocket::build().manage(db).mount(
         "/",
         routes![
             get_style,
-            get_status,
             get_registration,
             post_registration,
             put_registration,

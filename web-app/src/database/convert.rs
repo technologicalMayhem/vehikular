@@ -3,7 +3,7 @@ use shared::data::{
     Registration, SeatingCapacity, Vehicle, VehicleOwner,
 };
 
-use super::car_registration::{ActiveModel as CarRegActiveModel, Model as CarRegModel};
+use super::entities::car_registration::{ActiveModel as CarRegActiveModel, Model as CarRegModel};
 
 impl From<Registration> for CarRegActiveModel {
     fn from(value: Registration) -> Self {
@@ -52,12 +52,11 @@ impl From<Registration> for CarRegActiveModel {
                     .mass
                     .maximum_permissible_laden_mass_of_the_vehicle_in_service,
             ),
-            maximum_laden_mass_of_the_whole_vehicle_in_service:
-                sea_orm::ActiveValue::Set(
-                    value
-                        .mass
-                        .maximum_permissible_laden_mass_of_the_whole_vehicle_in_service,
-                ),
+            maximum_laden_mass_of_the_whole_vehicle_in_service: sea_orm::ActiveValue::Set(
+                value
+                    .mass
+                    .maximum_permissible_laden_mass_of_the_whole_vehicle_in_service,
+            ),
             capacity: sea_orm::ActiveValue::Set(value.engine.capacity),
             max_net_power: sea_orm::ActiveValue::Set(value.engine.max_net_power),
             fuel_type: sea_orm::ActiveValue::Set(value.engine.fuel_type),
@@ -99,8 +98,7 @@ impl TryFrom<CarRegModel> for Registration {
             },
             vehicle_identification_number: value.vehicle_identification_number,
             mass: Mass {
-                maximum_technically_permissible_laden_mass: value
-                    .maximum_technically_laden_mass,
+                maximum_technically_permissible_laden_mass: value.maximum_technically_laden_mass,
                 maximum_permissible_laden_mass_of_the_vehicle_in_service: value
                     .maximum_laden_mass_of_the_vehicle_in_service,
                 maximum_permissible_laden_mass_of_the_whole_vehicle_in_service: value
