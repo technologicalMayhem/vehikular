@@ -22,6 +22,20 @@ pub enum Error {
     DateParseFailure(bool),
     #[error("No car with {0} as it's registration could be found.")]
     RegistrationNotFound(String),
+    #[error("Failed to hash a password: {0}")]
+    PasswordHashingFailed(#[from] argon2::password_hash::errors::Error),
+    #[error("No user found with an id of {0}")]
+    UserNotFoundId(i32),
+    #[error("No user found with {0} as a email")]
+    UserNotFoundEmail(String),
+    #[error("User is not logged in.")]
+    UserNotLoggedIn,
+    #[error("Templating error: {0}")]
+    Template(#[from] crate::templates::TemplateError),
+    #[error("Not database connection found.")]
+    DatabaseNotFound,
+    #[error("No template provider found.")]
+    TemplateNotFound,
 }
 
 #[derive(Debug, Error)]
@@ -47,11 +61,18 @@ impl ErrorResponder for Error {
                 Error::TeraRendering(_)
                 | Error::DatabaseError(_)
                 | Error::DateParseFailure(_)
+                | Error::PasswordHashingFailed(_)
+                | Error::UserNotFoundId(_)
+                | Error::Template(_)
+                | Error::DatabaseNotFound
+                | Error::TemplateNotFound
                 | Error::InternalConversionFailed(_) => Status::InternalServerError,
-                Error::RegistrationNotFound(_) => Status::NotFound,
+                Error::UserNotLoggedIn => Status::Unauthorized,
+                Error::UserNotFoundEmail(_)
+                | Error::RegistrationNotFound(_) => Status::NotFound,
                 Error::RegistrationError(reg) => return reg.response(),
             },
-            self.to_string(),
+            format!("{self:#?}"),
         )
     }
 }

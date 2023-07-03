@@ -1,88 +1,61 @@
 #![allow(clippy::no_effect_underscore_binding)]
-use include_dir::{include_dir, Dir};
-use lazy_static::lazy_static;
-use migrator::Migrator;
+use authentication::Authentication;
 use rocket::{
     form::Form,
-    response::{
-        content::{RawCss, RawHtml},
-        Redirect,
-    },
+    response::{content::RawCss, Redirect},
     serde::json::Json,
     State,
 };
-use sea_orm::{ActiveValue, Database, DatabaseConnection, EntityTrait};
-use sea_orm_migration::MigratorTrait;
+use sea_orm::{ActiveValue, DatabaseConnection, EntityTrait};
 use shared::data::Registration;
-use tera::{Context, Tera};
+use templates::{TemplateFairing, Webpage};
 
 use database::{
     entities::{
         car_registration,
         maintenance_history::{self, ActiveModel},
     },
+    fairing::DatabaseFairing,
     get_registration as db_get_registration, get_registration_with_history_and_notes,
-    update_or_insert_notes,
+    update_or_insert_notes, get_all_registrations,
 };
 use error::{Error, RegistrationError, RegistrationResult};
+
+use crate::templates::PageRenderer;
 
 mod database;
 mod error;
 mod migrator;
+mod templates;
+mod user;
+mod authentication;
 
 #[macro_use]
 extern crate rocket;
 
-static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
-static STYLE: &str = include_str!("../webroot/style.css");
-
-lazy_static! {
-    pub static ref TEMPLATES: Tera = {
-        let mut tera = Tera::default();
-
-        for file in TEMPLATE_DIR.files() {
-            if let Some(filename) = file.path().file_stem() {
-                let filename = filename.to_string_lossy();
-                let template = String::from_utf8_lossy(file.contents());
-                let result = tera.add_raw_template(&filename, &template);
-                if let Err(e) = result {
-                    eprintln!("Encountered errors whilst loading templates: {e}");
-                    std::process::exit(1);
-                }
-            }
-        }
-
-        tera
-    };
-}
-
 #[get("/style.css")]
-fn get_style() -> RawCss<&'static str> {
-    RawCss(STYLE)
+async fn get_style(renderer: PageRenderer<'_>) -> RawCss<String> {
+    renderer.style().await
 }
 
 #[get("/registration/<reg_num>")]
 async fn get_registration(
     reg_num: &str,
     db: &State<DatabaseConnection>,
-) -> Result<RawHtml<String>, Error> {
+    mut renderer: PageRenderer<'_>,
+) -> Result<Webpage, Error> {
     let db = db as &DatabaseConnection;
     let (registration, notes, history) =
         get_registration_with_history_and_notes(db, reg_num).await?;
+
+    let notes = notes.map_or(String::new(), |f| f.body);
 
     let registration = match Registration::try_from(registration) {
         Ok(reg) => reg,
         Err(e) => return Err(Error::InternalConversionFailed(e)),
     };
-    let mut context = Context::new();
-    context.insert("registration", &registration);
-    context.insert("notes", &notes);
-    context.insert("history", &history);
 
-    TEMPLATES
-        .render("index", &context)
-        .map_err(Error::TeraRendering)
-        .map(RawHtml)
+    renderer.registration(&registration, &notes, &history).await
 }
 
 #[post("/registration", format = "application/json", data = "<registration>")]
@@ -182,44 +155,32 @@ async fn update_notes(
     ))))
 }
 
+#[get("/")]
+async fn index(
+    db: &State<DatabaseConnection>,
+    mut renderer: PageRenderer<'_>,
+) -> Result<Webpage, Error> {
+    renderer.index(get_all_registrations(db).await?).await
+}
+
 const DATABASE_URL: &str = "postgres://vehikular:vehikular@localhost:5432/vehikular";
 
 #[launch]
-async fn rocket() -> _ {
-    let db = match Database::connect(DATABASE_URL).await {
-        Ok(db) => db,
-        Err(e) => {
-            eprint!("Failed to connect to database ({DATABASE_URL}): {e}");
-            std::process::exit(1);
-        }
-    };
-
-    match Migrator::get_pending_migrations(&db).await {
-        Ok(migrations) => {
-            #[allow(clippy::cast_possible_truncation)]
-            // Truncating is fine as there should never be more than 4294967295 pending migrations. I hope...
-            let result = Migrator::up(&db, Some(migrations.len() as u32)).await;
-
-            if let Err(e) = result {
-                eprintln!("Failed to apply pending migrations: {e}");
-                std::process::exit(1);
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to get pending migrations: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    rocket::build().manage(db).mount(
-        "/",
-        routes![
-            get_style,
-            get_registration,
-            post_registration,
-            put_registration,
-            post_maintenance_item,
-            update_notes,
-        ],
-    )
+fn rocket() -> _ {
+    rocket::build()
+        .attach(DatabaseFairing::fairing(DATABASE_URL))
+        .attach(TemplateFairing::fairing())
+        .attach(Authentication::fairing())
+        .mount(
+            "/",
+            routes![
+                get_style,
+                index,
+                get_registration,
+                post_registration,
+                put_registration,
+                post_maintenance_item,
+                update_notes,
+            ],
+        )
 }

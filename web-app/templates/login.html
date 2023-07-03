@@ -1,0 +1,17 @@
+{% extends "base" %}
+{% block title %}Login{% endblock title %}
+{% block content %}
+<div>
+    <form action="/account/login" method="post" enctype="multipart/form-data">
+        <fieldset>
+            <label for="email">Email</label>
+            <input name="email" type="text" />
+        </fieldset>
+        <fieldset>
+            <label for="password">Password</label>
+            <input name="password" type="password" />
+        </fieldset>
+        <input type="submit" />
+    </form>
+</div>
+{% endblock content %}

@@ -1,7 +1,47 @@
 html {
-    font-family: sans-serif;
+  width: 100%;
+  font-family: sans-serif;
+  color: white;
 }
-
-ul, h1, h2, h3, h4, h5, h6 {
-    margin: 0;
+body {
+  width: 100%;
+  margin: 0;
+  background-color: #1d1d1e;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  flex: 1 1 auto;
+  background-color: #473d35;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5em;
+}
+.logo {
+  font-size: 2em;
+  text-decoration: none;
+  color: white;
+}
+.search {
+  padding: 0.25em 20ch;
+  background-color: gray;
+}
+.login {
+  padding: 0.25em 5ch;
+  background-color: gray;
+}
+.content {
+  padding: 1em;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1em;
+}
+.vehicle {
+  padding: 0.5em;
+  background-color: gray;
+  width: 100%;
+  max-width: 100ch;
 }

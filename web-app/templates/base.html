@@ -1,12 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     {% block head %}
     <link rel="stylesheet" href="/style.css" />
     <title>{% block title %}{% endblock title %} - Vehikular</title>
     {% endblock head %}
 </head>
+
 <body>
-    {% block content %}{% endblock content %}
+    <div class="header">
+        <a class="logo" href="/">
+            Vehikular
+        </a>
+        <div class="search">Search bar</div>
+        <div class="login">
+            {% if user is defined %}
+                Your are logged in as {{ user.display_name }}
+                <a href="/account/logout">Logout</a>
+            {% else %}
+                <a href="/account/register">Register</a>
+                <a href="/account/login">Login</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="content">{% block content %}{% endblock content %}</div>
 </body>
+
 </html>

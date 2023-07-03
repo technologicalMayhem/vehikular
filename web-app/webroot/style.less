@@ -1,0 +1,63 @@
+@bg-color: #1d1d1e;
+@primary: #473d35;
+@secondary: gray;
+@text-color: white;
+
+.no-link-style() {
+    text-decoration: none;
+    color: @text-color;
+}
+
+html {
+    width: 100%;
+    font-family: sans-serif;
+    color: @text-color;
+}
+
+body {
+    width: 100%;
+    margin: 0;
+    background-color: @bg-color;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    flex: 1 1 auto;
+    background-color: @primary;
+    display: flex;
+    justify-content: space-between;
+    padding: .5em;
+}
+
+.logo {
+    font-size: 2em;
+    .no-link-style();
+}
+
+.search {
+    padding: .25em 20ch;
+    background-color: @secondary;
+}
+
+.login {
+    padding: .25em 5ch;
+    background-color: @secondary;
+}
+
+.content {
+    padding: 1em;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1em;
+}
+
+.vehicle {
+    padding: .5em;
+    background-color: @secondary;
+    width: 100%;
+    max-width: 100ch;
+}
