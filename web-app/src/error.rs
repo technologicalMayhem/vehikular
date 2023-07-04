@@ -1,3 +1,4 @@
+#![allow(clippy::module_name_repetitions, clippy::enum_variant_names)]
 use std::io::Cursor;
 
 use rocket::{

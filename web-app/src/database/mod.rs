@@ -59,21 +59,19 @@ pub async fn update_or_insert_notes(
         return Err(Error::RegistrationNotFound(reg_num.into()));
     };
     info!("Find vehicle notes");
-    match VehicleNotes::find()
+    if let Some(db_notes) = VehicleNotes::find()
         .filter(vehicle_notes::Column::CarId.eq(registration.id))
         .one(db)
         .await?
     {
-        Some(db_notes) => {
             info!("Found some updating");
             let notes = vehicle_notes::ActiveModel {
                 id: ActiveValue::Unchanged(db_notes.id),
                 body: ActiveValue::Set(notes.into()),
                 ..Default::default()
             };
-            notes.update(db).await?;
-        }
-        None => {
+            notes.update(db).await?;}
+     else {
             info!("Found none, inserting");
             let notes = vehicle_notes::ActiveModel {
                 car_id: ActiveValue::Set(registration.id),
@@ -82,7 +80,6 @@ pub async fn update_or_insert_notes(
             };
             notes.insert(db).await?;
         }
-    }
 
     Ok(())
 }

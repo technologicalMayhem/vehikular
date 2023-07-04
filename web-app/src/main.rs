@@ -196,6 +196,8 @@ async fn rocket() -> _ {
 
     match Migrator::get_pending_migrations(&db).await {
         Ok(migrations) => {
+            #[allow(clippy::cast_possible_truncation)]
+            // Truncating is fine as there should never be more than 4294967295 pending migrations. I hope...
             let result = Migrator::up(&db, Some(migrations.len() as u32)).await;
 
             if let Err(e) = result {
