@@ -145,13 +145,7 @@ impl<'r> PageRenderer<'r> {
     ) -> Result<Webpage, Error> {
         self.context.insert("registrations", &vehicles);
 
-        Ok(self
-            .templates
-            .tera
-            .read()
-            .await
-            .render("index", &self.context)
-            .map(Into::into)?)
+        self.render("index").await
     }
 
     pub async fn registration(
@@ -164,42 +158,28 @@ impl<'r> PageRenderer<'r> {
         self.context.insert("notes", &notes);
         self.context.insert("history", &history);
 
-        Ok(self
-            .templates
-            .tera
-            .read()
-            .await
-            .render("vehicle", &self.context)
-            .map(Into::into)?)
+        self.render("vehicle").await
     }
 
     pub async fn register(&self) -> Result<Webpage, Error> {
-        Ok(self
-            .templates
-            .tera
-            .read()
-            .await
-            .render("register", &self.context)
-            .map(Into::into)?)
+        self.render("register").await
     }
 
     pub async fn login(&self) -> Result<Webpage, Error> {
-        Ok(self
-            .templates
-            .tera
-            .read()
-            .await
-            .render("login", &self.context)
-            .map(Into::into)?)
+        self.render("login").await
     }
 
     pub async fn account_page(&self) -> Result<Webpage, Error> {
+        self.render("account_page").await
+    }
+
+    async fn render(&self, template_name: &str) -> Result<Webpage, Error> {
         Ok(self
             .templates
             .tera
             .read()
             .await
-            .render("account_page", &self.context)
+            .render(template_name, &self.context)
             .map(Into::into)?)
     }
 }
