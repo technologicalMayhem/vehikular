@@ -39,7 +39,7 @@ impl Fairing for Authentication {
     async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
         Ok(rocket.mount(
             "/account",
-            routes![register_get, register_post, login_get, login_post, logout],
+            routes![get, register_get, register_post, login_get, login_post, logout],
         ))
     }
 }
@@ -55,6 +55,11 @@ struct RegistrationForm<'r> {
 struct LoginForm<'r> {
     email: &'r str,
     password: &'r str,
+}
+
+#[get("/")]
+async fn get(renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
+    renderer.account_page().await
 }
 
 #[get("/register")]

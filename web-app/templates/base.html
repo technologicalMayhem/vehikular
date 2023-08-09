@@ -17,6 +17,7 @@
         <div class="login">
             {% if user is defined %}
                 Your are logged in as {{ user.display_name }}
+                <a href="/account">Settings</a>
                 <a href="/account/logout">Logout</a>
             {% else %}
                 <a href="/account/register">Register</a>

@@ -174,24 +174,32 @@ impl<'r> PageRenderer<'r> {
     }
 
     pub async fn register(&self) -> Result<Webpage, Error> {
-        let context = Context::default();
         Ok(self
             .templates
             .tera
             .read()
             .await
-            .render("register", &context)
+            .render("register", &self.context)
             .map(Into::into)?)
     }
 
     pub async fn login(&self) -> Result<Webpage, Error> {
-        let context = Context::default();
         Ok(self
             .templates
             .tera
             .read()
             .await
-            .render("login", &context)
+            .render("login", &self.context)
+            .map(Into::into)?)
+    }
+
+    pub async fn account_page(&self) -> Result<Webpage, Error> {
+        Ok(self
+            .templates
+            .tera
+            .read()
+            .await
+            .render("account_page", &self.context)
             .map(Into::into)?)
     }
 }
