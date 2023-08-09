@@ -23,11 +23,14 @@ body {
   color: white;
 }
 .search {
-  padding: 0.25em 20ch;
+  width: 50%;
+  max-width: 50ch;
   background-color: gray;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .login {
-  padding: 0.25em 5ch;
   background-color: gray;
 }
 .content {
