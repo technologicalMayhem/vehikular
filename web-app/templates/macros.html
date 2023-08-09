@@ -1,9 +1,13 @@
-{% macro input(label, name, value="", type="text") %}
+{% macro input(label, name="_", value="", type="text") %}
+{% if name == "_" %}
+{% set name = label | lower %}
+{% endif %}
 <fieldset>
     <label for="{{ name }}">{{ label }}</label>
     <input name="{{ name }}" type="{{ type }}" value="{{ value }}" />
 </fieldset>
 {% endmacro input %}
+
 {% macro formatt() %}
 method="post" enctype="multipart/form-data"
 {% endmacro formatt %}

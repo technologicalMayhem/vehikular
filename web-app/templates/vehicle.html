@@ -89,10 +89,10 @@
 </div>
 <div>
     <h1>Notes</h1>
-    <form action="/updateNotes" method="post" enctype="multipart/form-data">
+    <form action="/updateNotes" {{ macros::formatt() }}>
         <input type="hidden" name="registration_number" value="{{ registration.registration_number }}" />
         <textarea name="body">{{ notes }}</textarea>
-        <div><input type="submit" value="Update Notes" /></div>
+        <input type="submit" value="Update Notes" />
     </form>
 </div>
 <div>
@@ -110,25 +110,13 @@
 </div>
 <div>
     <h1>Create maintenance item</h1>
-    <form action="/maintenance" method="post" enctype="multipart/form-data">
+    <form action="/maintenance" {{ macros::formatt() }} >
         <input name="registration_number" value="{{ registration.registration_number }}" type="hidden" />
-        <fieldset>
-            <label for="datetime">Date</label>
-            <input name="datetime" type="datetime-local" />
-        </fieldset>
-        <fieldset>
-            <label for="subject">Subject</label>
-            <input name="subject" type="text" />
-        </fieldset>
-        <fieldset>
-            <label for="body">Body</label>
-            <input name="body" type="text" />
-        </fieldset>
-        <fieldset>
-            <label for="mileage">Mileage</label>
-            <input name="mileage" type="number" />
-        </fieldset>
-        <input type="submit" />
+        {{ macros::input(label="Date", name="datetime", type="datetime-local") }}
+        {{ macros::input(label="Subject") }}
+        {{ macros::input(label="Body") }}
+        {{ macros::input(label="Mileage", type="number") }}
+        <input type="submit" value="Create new item" />
     </form>
 </div>
 {% endblock content %}
