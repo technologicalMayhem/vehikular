@@ -2,8 +2,8 @@
 {% block title %}Login{% endblock title %}
 {% block content %}
 <div>
-    <div>Email: {{ user.email }}</div>
-    <div>Display name: {{ user.display_name }}</div>
-    <div>Password: Nice try</div>
+    {{ macros::input(label="Email", value=user.email) }}
+    {{ macros::input(label="Display name", value=user.display_name) }}
+    {{ macros::input(label="Password") }}
 </div>
 {% endblock content %}

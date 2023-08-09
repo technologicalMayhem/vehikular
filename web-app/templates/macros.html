@@ -1,0 +1,7 @@
+{% macro input(label, value="", type="text") %}
+    <label>
+        <div>{{ label }}</div>
+        <input type="{{ type }}" value="{{ value }}">
+        <input type="submit" value="Update">
+    </label>
+{% endmacro input %}
