@@ -16,19 +16,19 @@ use database::{
         maintenance_history::{self, ActiveModel},
     },
     fairing::DatabaseFairing,
-    get_registration as db_get_registration, get_registration_with_history_and_notes,
-    update_or_insert_notes, get_all_registrations,
+    get_all_registrations, get_registration as db_get_registration,
+    get_registration_with_history_and_notes, update_or_insert_notes,
 };
 use error::{Error, RegistrationError, RegistrationResult};
 
 use crate::templates::PageRenderer;
 
+mod authentication;
 mod database;
 mod error;
 mod migrator;
 mod templates;
 mod user;
-mod authentication;
 
 #[macro_use]
 extern crate rocket;

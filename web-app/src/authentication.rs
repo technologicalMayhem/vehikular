@@ -39,7 +39,14 @@ impl Fairing for Authentication {
     async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
         Ok(rocket.mount(
             "/account",
-            routes![get, register_get, register_post, login_get, login_post, logout],
+            routes![
+                get,
+                register_get,
+                register_post,
+                login_get,
+                login_post,
+                logout
+            ],
         ))
     }
 }
@@ -72,7 +79,7 @@ async fn register_post(
     form: Form<RegistrationForm<'_>>,
     db: &State<DatabaseConnection>,
 ) -> Redirect {
-    match database::create_user(db,form.email,form.username,form.password).await {
+    match database::create_user(db, form.email, form.username, form.password).await {
         Ok(_) => Redirect::to("/"),
         Err(_) => Redirect::to("/account/register"),
     }

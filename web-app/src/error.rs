@@ -68,8 +68,7 @@ impl ErrorResponder for Error {
                 | Error::TemplateNotFound
                 | Error::InternalConversionFailed(_) => Status::InternalServerError,
                 Error::UserNotLoggedIn => Status::Unauthorized,
-                Error::UserNotFoundEmail(_)
-                | Error::RegistrationNotFound(_) => Status::NotFound,
+                Error::UserNotFoundEmail(_) | Error::RegistrationNotFound(_) => Status::NotFound,
                 Error::RegistrationError(reg) => return reg.response(),
             },
             format!("{self:#?}"),
