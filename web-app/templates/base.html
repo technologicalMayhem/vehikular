@@ -17,7 +17,7 @@
         <div class="search">Search bar</div>
         <div class="login">
             {% if user is defined %}
-                <div>You're are logged in as {{ user.display_name }}</div>
+                <div>You're logged in as {{ user.display_name }}</div>
                 <a href="/account">Settings</a>
                 <a href="/account/logout">Logout</a>
             {% else %}
