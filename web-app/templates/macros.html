@@ -1,7 +1,9 @@
-{% macro input(label, value="", type="text") %}
-    <label>
-        <div>{{ label }}</div>
-        <input type="{{ type }}" value="{{ value }}">
-        <input type="submit" value="Update">
-    </label>
+{% macro input(label, name, value="", type="text") %}
+<fieldset>
+    <label for="{{ name }}">{{ label }}</label>
+    <input name="{{ name }}" type="{{ type }}" value="{{ value }}" />
+</fieldset>
 {% endmacro input %}
+{% macro formatt() %}
+method="post" enctype="multipart/form-data"
+{% endmacro formatt %}

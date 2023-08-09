@@ -2,8 +2,11 @@
 {% block title %}Login{% endblock title %}
 {% block content %}
 <div>
-    {{ macros::input(label="Email", value=user.email) }}
-    {{ macros::input(label="Display name", value=user.display_name) }}
-    {{ macros::input(label="Password") }}
+    <form {{ macros::formatt() }} >
+    {{ macros::input(label="Email", name="email", value=user.email) }}
+    {{ macros::input(label="Display name", name="display name", value=user.display_name) }}
+    {{ macros::input(label="Password", name="password") }}
+    <input type="submit" value="Update"/>
+</form>
 </div>
 {% endblock content %}

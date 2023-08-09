@@ -2,20 +2,11 @@
 {% block title %}Register{% endblock title %}
 {% block content %}
 <div>
-    <form action="/account/register" method="post" enctype="multipart/form-data">
-        <fieldset>
-            <label for="email">Email</label>
-            <input name="email" type="text" />
-        </fieldset>
-        <fieldset>
-            <label for="username">Display name</label>
-            <input name="username" type="text" />
-        </fieldset>
-        <fieldset>
-            <label for="password">Password</label>
-            <input name="password" type="password" />
-        </fieldset>
-        <input type="submit" />
+    <form action="/account/register" {{ macros::formatt() }} >
+        {{ macros::input(label="Email", name="email") }}
+        {{ macros::input(label="Display name", name="username") }}
+        {{ macros::input(label="Password", name="password", type="password") }}
+        <input type="submit" value="Create account"/>
     </form>
 </div>
 {% endblock content %}
