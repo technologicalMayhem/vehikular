@@ -11,7 +11,6 @@ impl MigrationName for Migration {
 #[rustfmt::skip]
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    // Define how to apply this migration: Create the Bakery table.
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .create_table(
