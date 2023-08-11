@@ -4,6 +4,7 @@ use rocket::{
 };
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
+use sqlx::postgres::PgPoolOptions;
 
 use crate::migrator::Migrator;
 
@@ -49,7 +50,7 @@ impl Fairing for DatabaseFairing {
 
                 if let Err(e) = result {
                     error!("Failed to apply pending migrations: {e}");
-                    std::process::exit(1);
+                    return Err(rocket)
                 } else {
                     info!("Database migrations succesfully applied!");
                 }
@@ -60,6 +61,18 @@ impl Fairing for DatabaseFairing {
             }
         };
 
-        Ok(rocket.manage(db))
+        let sqlx = match PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&self.connection_string)
+            .await
+        {
+            Ok(sqlx) => sqlx,
+            Err(e) => {
+                error!("Could not establish connection to database: {e}");
+                return Err(rocket);
+            },
+        };
+
+        Ok(rocket.manage(db).manage(sqlx))
     }
 }

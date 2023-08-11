@@ -8,6 +8,7 @@ use rocket::{
 };
 use sea_orm::{ActiveValue, DatabaseConnection, EntityTrait};
 use shared::data::Registration;
+use sqlx::{Pool, Postgres};
 use templates::{TemplateFairing, Webpage};
 
 use database::{
@@ -41,10 +42,9 @@ async fn get_style(renderer: PageRenderer<'_>) -> RawCss<String> {
 #[get("/registration/<reg_num>")]
 async fn get_registration(
     reg_num: &str,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
     mut renderer: PageRenderer<'_>,
 ) -> Result<Webpage, Error> {
-    let db = db as &DatabaseConnection;
     let (registration, notes, history) =
         get_registration_with_history_and_notes(db, reg_num).await?;
 
@@ -62,10 +62,11 @@ async fn get_registration(
 async fn post_registration(
     registration: Json<Registration>,
     db: &State<DatabaseConnection>,
+    sqlx: &State<Pool<Postgres>>,
 ) -> Result<RegistrationResult, Error> {
     let db = db as &DatabaseConnection;
 
-    if db_get_registration(db, &registration.registration_number)
+    if db_get_registration(sqlx, &registration.registration_number)
         .await?
         .is_some()
     {
@@ -84,7 +85,7 @@ async fn post_registration(
 )]
 async fn put_registration(
     new_registration: Json<Registration>,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
 ) -> Result<RegistrationResult, Error> {
     let registration = db_get_registration(db, &new_registration.registration_number).await?;
     if let Some(old_registration) = registration {
@@ -109,9 +110,10 @@ struct NewMaintenanceItemForm<'r> {
 async fn post_maintenance_item(
     form: Form<NewMaintenanceItemForm<'_>>,
     db: &State<DatabaseConnection>,
+    sqlx: &State<Pool<Postgres>>,
 ) -> Result<Redirect, Error> {
     let db = db as &DatabaseConnection;
-    let registration = db_get_registration(db, form.registration_number).await?;
+    let registration = db_get_registration(sqlx, form.registration_number).await?;
     if let Some(registration) = registration {
         let date_time = chrono::naive::NaiveDateTime::from_timestamp_millis(
             form.datetime.assume_utc().unix_timestamp() * 1000,
@@ -148,8 +150,9 @@ struct UpdateNotesForm<'r> {
 async fn update_notes(
     form: Form<UpdateNotesForm<'_>>,
     db: &State<DatabaseConnection>,
+    sqlx: &State<Pool<Postgres>>,
 ) -> Result<Redirect, Error> {
-    update_or_insert_notes(db, form.registration_number, form.body).await?;
+    update_or_insert_notes(db, sqlx, form.registration_number, form.body).await?;
     Ok(Redirect::to(uri!(get_registration(
         form.registration_number
     ))))
@@ -157,7 +160,7 @@ async fn update_notes(
 
 #[get("/")]
 async fn index(
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
     mut renderer: PageRenderer<'_>,
 ) -> Result<Webpage, Error> {
     renderer.index(get_all_registrations(db).await?).await

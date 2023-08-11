@@ -14,6 +14,8 @@ pub enum Error {
     DatabaseError(#[from] sea_orm::error::DbErr),
     #[error("An error occured whilst rendering")]
     TeraRendering(#[from] tera::Error),
+    #[error("An error occured whilst interacting with the database: {0}")]
+    SqlxError(#[from] sqlx::Error),
     #[error("Could not convert database types to internal types: {0}")]
     InternalConversionFailed(#[from] shared::data::Error),
     #[error("An error occured whilst registering: {0}")]
@@ -58,18 +60,10 @@ impl ErrorResponder for Error {
     fn response(&self) -> (Status, String) {
         (
             match self {
-                Error::TeraRendering(_)
-                | Error::DatabaseError(_)
-                | Error::DateParseFailure(_)
-                | Error::PasswordHashingFailed(_)
-                | Error::UserNotFoundId(_)
-                | Error::Template(_)
-                | Error::DatabaseNotFound
-                | Error::TemplateNotFound
-                | Error::InternalConversionFailed(_) => Status::InternalServerError,
                 Error::UserNotLoggedIn => Status::Unauthorized,
                 Error::UserNotFoundEmail(_) | Error::RegistrationNotFound(_) => Status::NotFound,
                 Error::RegistrationError(reg) => return reg.response(),
+                _ => Status::InternalServerError,
             },
             format!("{self:#?}"),
         )

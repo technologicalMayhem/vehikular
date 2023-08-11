@@ -12,6 +12,7 @@ use sea_orm::{
 };
 
 use entities::prelude::*;
+use sqlx::{Pool, Postgres};
 
 use crate::error::Error;
 
@@ -22,27 +23,30 @@ pub mod entities;
 pub mod fairing;
 
 pub async fn get_registration(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
     reg_num: &str,
 ) -> Result<Option<car_registration::Model>, Error> {
-    CarRegistration::find()
-        .filter(car_registration::Column::RegistrationNumber.like(reg_num))
-        .one(db)
-        .await
-        .map_err(Error::DatabaseError)
+    sqlx::query_as!(
+        car_registration::Model,
+        "SELECT * FROM car_registration WHERE registration_number = $1",
+        reg_num
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(Error::SqlxError)
 }
 
 pub async fn get_all_registrations(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
 ) -> Result<Vec<car_registration::Model>, Error> {
-    CarRegistration::find()
-        .all(db)
+    sqlx::query_as!(car_registration::Model, "SELECT * FROM car_registration;")
+        .fetch_all(db)
         .await
-        .map_err(Error::DatabaseError)
+        .map_err(Error::SqlxError)
 }
 
 pub async fn get_registration_with_history_and_notes(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
     reg_num: &str,
 ) -> Result<
     (
@@ -52,37 +56,61 @@ pub async fn get_registration_with_history_and_notes(
     ),
     Error,
 > {
-    let registration = CarRegistration::find()
-        .filter(car_registration::Column::RegistrationNumber.like(reg_num))
-        .one(db)
-        .await?
-        .ok_or_else(|| Error::RegistrationNotFound(reg_num.into()))?;
+    let registration = sqlx::query_as!(
+        car_registration::Model,
+        "select *
+        from car_registration cr
+        where cr.registration_number = $1",
+        reg_num
+    )
+    .fetch_optional(db)
+    .await?
+    .ok_or_else(|| Error::RegistrationNotFound(reg_num.into()))?;
 
-    let notes = registration.find_related(VehicleNotes).one(db).await?;
-    let history = registration
-        .find_related(MaintenanceHistory)
-        .all(db)
-        .await?;
+    let notes = sqlx::query_as!(
+        vehicle_notes::Model,
+        "select vn.*
+        from car_registration cr
+        left join vehicle_notes vn on vn.car_id = cr.id
+        where cr.registration_number = $1",
+        reg_num
+    )
+    .fetch_optional(db)
+    .await?;
+    let history = sqlx::query_as!(
+        maintenance_history::Model,
+        "select mh.*
+        from car_registration cr 
+        left join maintenance_history mh ON mh.car_id = cr.id
+        where cr.registration_number = $1",
+        reg_num
+    )
+    .fetch_all(db)
+    .await?;
 
     Ok((registration, notes, history))
 }
 
+struct UpdateInsertNote {
+    car_id: i32,
+    notes_id: i32,
+}
+
 pub async fn update_or_insert_notes(
     db: &DatabaseConnection,
+    sqlx: &Pool<Postgres>,
     reg_num: &str,
     notes: &str,
 ) -> Result<(), Error> {
-    info!("Get registration");
-    let Some(registration) = get_registration(db, reg_num).await? else {
-        return Err(Error::RegistrationNotFound(reg_num.into()));
-    };
-    info!("Find vehicle notes");
+    let query = sqlx::query_as!(UpdateInsertNote, "select cr.id as car_id, vn.id as notes_id 
+    from car_registration cr 
+    left join vehicle_notes vn on vn.car_id = cr.id 
+    where cr.registration_number = $1", reg_num).fetch_optional(sqlx).await;
     if let Some(db_notes) = VehicleNotes::find()
         .filter(vehicle_notes::Column::CarId.eq(registration.id))
         .one(db)
         .await?
     {
-        info!("Found some updating");
         let notes = vehicle_notes::ActiveModel {
             id: ActiveValue::Unchanged(db_notes.id),
             body: ActiveValue::Set(notes.into()),
@@ -90,7 +118,6 @@ pub async fn update_or_insert_notes(
         };
         notes.update(db).await?;
     } else {
-        info!("Found none, inserting");
         let notes = vehicle_notes::ActiveModel {
             car_id: ActiveValue::Set(registration.id),
             body: ActiveValue::Set(notes.into()),
