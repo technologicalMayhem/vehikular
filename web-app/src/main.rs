@@ -18,7 +18,7 @@ use database::{
     },
     fairing::DatabaseFairing,
     get_all_registrations, get_registration as db_get_registration,
-    get_registration_with_history_and_notes, update_or_insert_notes,
+    get_registration_with_history_and_notes, insert_registration, update_or_insert_notes,
 };
 use error::{Error, RegistrationError, RegistrationResult};
 
@@ -61,21 +61,10 @@ async fn get_registration(
 #[post("/registration", format = "application/json", data = "<registration>")]
 async fn post_registration(
     registration: Json<Registration>,
-    db: &State<DatabaseConnection>,
-    sqlx: &State<Pool<Postgres>>,
+    db: &State<Pool<Postgres>>,
 ) -> Result<RegistrationResult, Error> {
-    let db = db as &DatabaseConnection;
-
-    if db_get_registration(sqlx, &registration.registration_number)
-        .await?
-        .is_some()
-    {
-        Err(RegistrationError::AlreadyExists)?
-    } else {
-        let model = car_registration::ActiveModel::from(registration.0);
-        car_registration::Entity::insert(model).exec(db).await?;
-        Ok(RegistrationResult::NoContent)
-    }
+    insert_registration(db, registration.0).await?;
+    Ok(RegistrationResult::NoContent)
 }
 
 #[put(
@@ -149,10 +138,9 @@ struct UpdateNotesForm<'r> {
 #[post("/updateNotes", data = "<form>")]
 async fn update_notes(
     form: Form<UpdateNotesForm<'_>>,
-    db: &State<DatabaseConnection>,
-    sqlx: &State<Pool<Postgres>>,
+    db: &State<Pool<Postgres>>,
 ) -> Result<Redirect, Error> {
-    update_or_insert_notes(db, sqlx, form.registration_number, form.body).await?;
+    update_or_insert_notes(db, form.registration_number, form.body).await?;
     Ok(Redirect::to(uri!(get_registration(
         form.registration_number
     ))))
