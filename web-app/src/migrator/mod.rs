@@ -1,19 +1,42 @@
-use sea_orm_migration::prelude::*;
+use std::collections::HashMap;
 
-pub mod m20230622_000001_create_registraition;
-pub mod m20230629_000002_create_maintenance_history;
-pub mod m20230701_000003_create_notes;
-pub mod m20230703_000004_create_user;
-pub struct Migrator;
+use rocket::futures::StreamExt;
+use sqlx::{Pool, Postgres};
 
-#[async_trait::async_trait]
-impl MigratorTrait for Migrator {
-    fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
-            Box::new(m20230622_000001_create_registraition::Migration),
-            Box::new(m20230629_000002_create_maintenance_history::Migration),
-            Box::new(m20230701_000003_create_notes::Migration),
-            Box::new(m20230703_000004_create_user::Migration),
-        ]
-    }
+use crate::error::Error;
+
+struct Migration {
+    name: &'static str,
+    statements: &'static str,
+}
+
+macro_rules! migration {
+    ($name:literal) => {
+        Migration {
+            name: $name,
+            statements: include_str!($name),
+        }
+    };
+}
+
+static MIGRATIONS: &[Migration] = &[migration!("migration_000001_initial.sql")];
+
+async fn migrate(db: &Pool<Postgres>) -> Result<bool, Error> {
+
+
+
+    let succesful = sqlx::query("")
+        .execute_many(db)
+        .await
+        .all(|f| async {
+            if let Err(e) = f {
+                error!("Encountered an error whilst applying migration: {e}");
+                false
+            } else {
+                true
+            }
+        })
+        .await;
+
+    Ok(succesful)
 }
