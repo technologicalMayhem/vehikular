@@ -6,10 +6,6 @@ use argon2::{
 };
 use chrono::{Days, Duration, Local, NaiveDateTime};
 use rand::{distributions::Alphanumeric, Rng};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    Related,
-};
 
 use shared::data::Registration;
 use sqlx::{Pool, Postgres};
@@ -18,7 +14,6 @@ use crate::error::{Error, RegistrationError};
 
 use self::entities::{active_session, car_registration, maintenance_history, user, vehicle_notes};
 
-pub mod convert;
 pub mod entities;
 pub mod fairing;
 
@@ -33,7 +28,7 @@ pub async fn get_registration(
     )
     .fetch_optional(db)
     .await
-    .map_err(Error::SqlxError)
+    .map_err(Error::DbError)
 }
 
 pub async fn insert_registration(
@@ -58,7 +53,7 @@ pub async fn get_all_registrations(
     sqlx::query_as!(car_registration::Model, "SELECT * FROM car_registration;")
         .fetch_all(db)
         .await
-        .map_err(Error::SqlxError)
+        .map_err(Error::DbError)
 }
 
 pub async fn get_registration_with_history_and_notes(
@@ -178,7 +173,7 @@ pub async fn insert_maintenance_item(
 }
 
 pub async fn create_user(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
     email: &str,
     display_name: &str,
     password: &str,
@@ -190,13 +185,14 @@ pub async fn create_user(
         .hash_password(password.as_bytes(), &salt)?
         .to_string();
 
-    user::ActiveModel {
-        email: ActiveValue::Set(email.into()),
-        display_name: ActiveValue::Set(display_name.into()),
-        password_hash: ActiveValue::Set(password_hash),
-        ..Default::default()
-    }
-    .insert(db)
+    sqlx::query!(
+        "insert into \"user\" (email, display_name, password_hash)
+                  values ($1, $2, $3)",
+        email.into(),
+        display_name.into(),
+        password_hash
+    )
+    .execute(db)
     .await?;
 
     Ok(())
@@ -216,39 +212,38 @@ pub async fn delete_user(db: &Pool<Postgres>, user_id: i32) -> Result<(), Error>
     Ok(())
 }
 
-pub async fn get_users_by_display_name(
-    db: &DatabaseConnection,
-    display_name: &str,
-) -> Result<Vec<user::Model>, Error> {
-    Ok(user::Entity::find()
-        .filter(user::Column::DisplayName.like(display_name))
-        .all(db)
-        .await?)
-}
-
 pub async fn get_user_by_email(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
     email: &str,
 ) -> Result<Option<user::Model>, Error> {
-    Ok(user::Entity::find()
-        .filter(user::Column::Email.like(email))
-        .one(db)
-        .await?)
+    sqlx::query_as!(
+        user::Model,
+        "select * from \"user\" where email = $1",
+        email
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(Error::DbError)
 }
 
 pub async fn get_user_by_token(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
     token: &str,
 ) -> Result<Option<user::Model>, Error> {
-    active_session::Entity::find_related()
-        .filter(active_session::Column::Token.like(token))
-        .one(db)
-        .await
-        .map_err(Error::DatabaseError)
+    sqlx::query_as!(
+        user::Model,
+        "select distinct u.id, u.display_name, u.email, u.password_hash from \"user\" u 
+         inner join active_session a on u.id = a.user_id 
+         where a.\"token\" = $1",
+        token
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(Error::DbError)
 }
 
 pub async fn create_token(
-    db: &DatabaseConnection,
+    db: &Pool<Postgres>,
     user_id: i32,
 ) -> Result<active_session::Model, Error> {
     let token: String = rand::thread_rng()
@@ -257,14 +252,17 @@ pub async fn create_token(
         .map(char::from)
         .collect();
 
-    active_session::ActiveModel {
-        user_id: ActiveValue::Set(user_id),
-        token: ActiveValue::Set(token),
-        idle_timeout: ActiveValue::Set(Local::now().naive_local().add(Duration::hours(2))),
-        absolute_timeout: ActiveValue::Set(Local::now().naive_local().add(Days::new(1))),
-        ..Default::default()
-    }
-    .insert(db)
+    sqlx::query_as!(
+        active_session::Model,
+        "insert into active_session (user_id, token, idle_timeout, absolute_timeout)
+         values ($1, $2, $3, $4)
+         returning *",
+        user_id,
+        token,
+        Local::now().naive_local().add(Duration::hours(2)),
+        Local::now().naive_local().add(Days::new(1))
+    )
+    .fetch_one(db)
     .await
-    .map_err(Error::DatabaseError)
+    .map_err(Error::DbError)
 }

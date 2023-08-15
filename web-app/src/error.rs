@@ -10,12 +10,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("An error occured whilst trying to access the database: {0}")]
-    DatabaseError(#[from] sea_orm::error::DbErr),
     #[error("An error occured whilst rendering")]
     TeraRendering(#[from] tera::Error),
     #[error("An error occured whilst interacting with the database: {0}")]
-    SqlxError(#[from] sqlx::Error),
+    DbError(#[from] sqlx::Error),
     #[error("Could not convert database types to internal types: {0}")]
     InternalConversionFailed(#[from] shared::data::Error),
     #[error("An error occured whilst registering: {0}")]

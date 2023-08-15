@@ -10,7 +10,8 @@ use rocket::{
     response::Redirect,
     Build, Request, Rocket, State,
 };
-use sea_orm::DatabaseConnection;
+use sqlx::Pool;
+use sqlx::Postgres;
 
 use crate::database::create_token;
 use crate::{
@@ -65,7 +66,7 @@ struct LoginForm<'r> {
 }
 
 #[get("/")]
-async fn get(renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
+async fn get(_user: user::Model, renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
     renderer.account_page().await
 }
 
@@ -75,10 +76,7 @@ async fn register_get(renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
 }
 
 #[post("/register", data = "<form>")]
-async fn register_post(
-    form: Form<RegistrationForm<'_>>,
-    db: &State<DatabaseConnection>,
-) -> Redirect {
+async fn register_post(form: Form<RegistrationForm<'_>>, db: &State<Pool<Postgres>>) -> Redirect {
     match database::create_user(db, form.email, form.username, form.password).await {
         Ok(_) => Redirect::to("/"),
         Err(_) => Redirect::to("/account/register"),
@@ -93,7 +91,7 @@ async fn login_get(renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
 #[post("/login", data = "<form>")]
 async fn login_post(
     form: Form<LoginForm<'_>>,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Error> {
     let Some(user) = get_user_by_email(db, form.email).await? else {
@@ -130,7 +128,7 @@ impl<'r> FromRequest<'r> for user::Model {
         let Some(cookie) = req.cookies().get("LoginToken") else {
             return Outcome::Forward(());
         };
-        let Some(db) = req.rocket().state::<DatabaseConnection>() else {
+        let Some(db) = req.rocket().state::<Pool<Postgres>>() else {
             return Outcome::Failure((Status::InternalServerError, Error::DatabaseNotFound))
         };
 

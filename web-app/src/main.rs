@@ -42,11 +42,6 @@ async fn get_registration(
 
     let notes = notes.map_or(String::new(), |f| f.body);
 
-    let registration = match Registration::try_from(registration) {
-        Ok(reg) => reg,
-        Err(e) => return Err(Error::InternalConversionFailed(e)),
-    };
-
     renderer.registration(&registration, &notes, &history).await
 }
 
