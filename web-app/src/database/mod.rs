@@ -4,14 +4,13 @@ use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHasher,
 };
-use chrono::{Days, Duration, Local};
+use chrono::{Days, Duration, Local, NaiveDateTime};
 use rand::{distributions::Alphanumeric, Rng};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait,
-    QueryFilter, Related,
+    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    Related,
 };
 
-use entities::prelude::*;
 use shared::data::Registration;
 use sqlx::{Pool, Postgres};
 
@@ -37,7 +36,10 @@ pub async fn get_registration(
     .map_err(Error::SqlxError)
 }
 
-pub async fn insert_registration(db: &Pool<Postgres>, registration: Registration) -> Result<(), Error> {
+pub async fn insert_registration(
+    db: &Pool<Postgres>,
+    registration: Registration,
+) -> Result<(), Error> {
     if get_registration(db, &registration.registration_number)
         .await?
         .is_some()
@@ -153,6 +155,28 @@ pub async fn update_or_insert_notes(
     Ok(())
 }
 
+pub async fn insert_maintenance_item(
+    db: &Pool<Postgres>,
+    car_id: i32,
+    date_time: NaiveDateTime,
+    subject: &str,
+    body: &str,
+    mileage: i32,
+) -> Result<(), Error> {
+    sqlx::query!(
+        "insert into maintenance_history (car_id, date_time, subject, body, mileage)
+         values ($1, $2, $3, $4, $5)",
+        car_id,
+        date_time,
+        subject.into(),
+        body.into(),
+        mileage
+    )
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
 pub async fn create_user(
     db: &DatabaseConnection,
     email: &str,
@@ -178,8 +202,17 @@ pub async fn create_user(
     Ok(())
 }
 
-pub async fn delete_user(db: &DatabaseConnection, user_id: i32) -> Result<(), Error> {
-    user::Entity::delete_by_id(user_id).exec(db).await?;
+pub async fn delete_user(db: &Pool<Postgres>, user_id: i32) -> Result<(), Error> {
+    let mut trans = db.begin().await?;
+
+    sqlx::query!("delete from active_session where user_id = $1", user_id)
+        .execute(&mut *trans)
+        .await?;
+    sqlx::query!("delete from \"user\" where id = $1", user_id)
+        .execute(&mut *trans)
+        .await?;
+
+    trans.commit().await?;
     Ok(())
 }
 
