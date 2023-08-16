@@ -6,27 +6,19 @@ use rocket::{
     serde::json::Json,
     State,
 };
-use sea_orm::{ActiveValue, DatabaseConnection, EntityTrait};
 use shared::data::Registration;
+use sqlx::{Pool, Postgres};
 use templates::{TemplateFairing, Webpage};
 
-use database::{
-    entities::{
-        car_registration,
-        maintenance_history::{self, ActiveModel},
-    },
-    fairing::DatabaseFairing,
-    get_all_registrations, get_registration as db_get_registration,
-    get_registration_with_history_and_notes, update_or_insert_notes,
-};
-use error::{Error, RegistrationError, RegistrationResult};
+use database as db;
+use db::fairing::DatabaseFairing;
+use error::{Error, RegistrationResult};
 
 use crate::templates::PageRenderer;
 
 mod authentication;
 mod database;
 mod error;
-mod migrator;
 mod templates;
 mod user;
 
@@ -41,19 +33,13 @@ async fn get_style(renderer: PageRenderer<'_>) -> RawCss<String> {
 #[get("/registration/<reg_num>")]
 async fn get_registration(
     reg_num: &str,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
     mut renderer: PageRenderer<'_>,
 ) -> Result<Webpage, Error> {
-    let db = db as &DatabaseConnection;
     let (registration, notes, history) =
-        get_registration_with_history_and_notes(db, reg_num).await?;
+        db::get_registration_with_history_and_notes(db, reg_num).await?;
 
     let notes = notes.map_or(String::new(), |f| f.body);
-
-    let registration = match Registration::try_from(registration) {
-        Ok(reg) => reg,
-        Err(e) => return Err(Error::InternalConversionFailed(e)),
-    };
 
     renderer.registration(&registration, &notes, &history).await
 }
@@ -61,39 +47,10 @@ async fn get_registration(
 #[post("/registration", format = "application/json", data = "<registration>")]
 async fn post_registration(
     registration: Json<Registration>,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
 ) -> Result<RegistrationResult, Error> {
-    let db = db as &DatabaseConnection;
-
-    if db_get_registration(db, &registration.registration_number)
-        .await?
-        .is_some()
-    {
-        Err(RegistrationError::AlreadyExists)?
-    } else {
-        let model = car_registration::ActiveModel::from(registration.0);
-        car_registration::Entity::insert(model).exec(db).await?;
-        Ok(RegistrationResult::NoContent)
-    }
-}
-
-#[put(
-    "/registration",
-    format = "application/json",
-    data = "<new_registration>"
-)]
-async fn put_registration(
-    new_registration: Json<Registration>,
-    db: &State<DatabaseConnection>,
-) -> Result<RegistrationResult, Error> {
-    let registration = db_get_registration(db, &new_registration.registration_number).await?;
-    if let Some(old_registration) = registration {
-        let mut active_model: car_registration::ActiveModel = new_registration.0.into();
-        active_model.id = ActiveValue::Set(old_registration.id);
-        Ok(RegistrationResult::NoContent)
-    } else {
-        Err(RegistrationError::DoesNotExist)?
-    }
+    db::insert_registration(db, registration.0).await?;
+    Ok(RegistrationResult::NoContent)
 }
 
 #[derive(Debug, FromForm)]
@@ -108,27 +65,24 @@ struct NewMaintenanceItemForm<'r> {
 #[post("/maintenance", data = "<form>")]
 async fn post_maintenance_item(
     form: Form<NewMaintenanceItemForm<'_>>,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
 ) -> Result<Redirect, Error> {
-    let db = db as &DatabaseConnection;
-    let registration = db_get_registration(db, form.registration_number).await?;
+    let registration = db::get_registration(db, form.registration_number).await?;
     if let Some(registration) = registration {
         let date_time = chrono::naive::NaiveDateTime::from_timestamp_millis(
             form.datetime.assume_utc().unix_timestamp() * 1000,
         )
         .ok_or(Error::DateParseFailure(false))?;
-        let maintenance_item = ActiveModel {
-            id: ActiveValue::NotSet,
-            car_id: ActiveValue::Set(registration.id),
-            date_time: ActiveValue::Set(date_time),
-            subject: ActiveValue::Set(form.subject.into()),
-            body: ActiveValue::Set(form.body.into()),
-            mileage: ActiveValue::Set(Some(form.mileage)),
-        };
 
-        maintenance_history::Entity::insert(maintenance_item)
-            .exec(db)
-            .await?;
+        db::insert_maintenance_item(
+            db,
+            registration.id,
+            date_time,
+            form.subject,
+            form.body,
+            form.mileage,
+        )
+        .await?;
 
         Ok(Redirect::to(uri!(get_registration(
             form.registration_number
@@ -147,9 +101,9 @@ struct UpdateNotesForm<'r> {
 #[post("/updateNotes", data = "<form>")]
 async fn update_notes(
     form: Form<UpdateNotesForm<'_>>,
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
 ) -> Result<Redirect, Error> {
-    update_or_insert_notes(db, form.registration_number, form.body).await?;
+    db::update_or_insert_notes(db, form.registration_number, form.body).await?;
     Ok(Redirect::to(uri!(get_registration(
         form.registration_number
     ))))
@@ -157,10 +111,10 @@ async fn update_notes(
 
 #[get("/")]
 async fn index(
-    db: &State<DatabaseConnection>,
+    db: &State<Pool<Postgres>>,
     mut renderer: PageRenderer<'_>,
 ) -> Result<Webpage, Error> {
-    renderer.index(get_all_registrations(db).await?).await
+    renderer.index(db::get_all_registrations(db).await?).await
 }
 
 const DATABASE_URL: &str = "postgres://vehikular:vehikular@localhost:5432/vehikular";
@@ -178,7 +132,6 @@ fn rocket() -> _ {
                 index,
                 get_registration,
                 post_registration,
-                put_registration,
                 post_maintenance_item,
                 update_notes,
             ],

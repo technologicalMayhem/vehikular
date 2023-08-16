@@ -12,7 +12,6 @@ use rocket::{
     tokio::sync::RwLock,
     Build, Request, Rocket, State,
 };
-use shared::data::Registration;
 use tera::{Context, Tera};
 use thiserror::Error;
 
@@ -150,7 +149,7 @@ impl<'r> PageRenderer<'r> {
 
     pub async fn registration(
         &mut self,
-        registration: &Registration,
+        registration: &car_registration::Model,
         notes: &str,
         history: &Vec<maintenance_history::Model>,
     ) -> Result<Webpage, Error> {
