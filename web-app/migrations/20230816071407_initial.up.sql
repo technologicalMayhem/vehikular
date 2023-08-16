@@ -35,13 +35,6 @@ CREATE TABLE car_registration (
 	CONSTRAINT car_registration_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE migration (
-	"version" int4 NOT NULL,
-    "description" varchar NOT NULL,
-	applied_at timestamp NOT NULL,
-	CONSTRAINT migrations_pkey PRIMARY KEY (version)
-);
-
 CREATE TABLE "user" (
 	id serial4 NOT NULL,
 	display_name varchar NOT NULL,

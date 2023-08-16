@@ -19,7 +19,6 @@ use crate::templates::PageRenderer;
 mod authentication;
 mod database;
 mod error;
-mod migrator;
 mod templates;
 mod user;
 

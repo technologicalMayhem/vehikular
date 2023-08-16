@@ -3,6 +3,7 @@ use rocket::{
     Build, Rocket,
 };
 use sqlx::postgres::PgPoolOptions;
+
 pub struct DatabaseFairing {
     connection_string: String,
 }
@@ -34,7 +35,7 @@ impl Fairing for DatabaseFairing {
             Err(e) => {
                 error!("Could not establish connection to database: {e}");
                 return Err(rocket);
-            },
+            }
         };
 
         Ok(rocket.manage(db))
