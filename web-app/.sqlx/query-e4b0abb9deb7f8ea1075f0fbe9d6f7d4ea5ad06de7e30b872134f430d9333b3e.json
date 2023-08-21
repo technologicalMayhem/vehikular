@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into active_session (user_id, token, idle_timeout, absolute_timeout)\n         values ($1, $2, $3, $4)\n         returning *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "token",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "idle_timeout",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 4,
+        "name": "absolute_timeout",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Timestamp",
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e4b0abb9deb7f8ea1075f0fbe9d6f7d4ea5ad06de7e30b872134f430d9333b3e"
+}

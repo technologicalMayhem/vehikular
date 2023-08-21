@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select cr.id as car_id, vn.id as notes_id \n        from car_registration cr \n        left join vehicle_notes vn on vn.car_id = cr.id \n        where cr.registration_number = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "car_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "notes_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b12c78782f2ba7ae05f65712b01a01d08fac1a0506e9549ecd340e91e59a6a1b"
+}

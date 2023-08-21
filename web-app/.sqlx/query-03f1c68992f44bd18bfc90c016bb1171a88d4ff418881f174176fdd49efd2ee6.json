@@ -1,0 +1,214 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM car_registration cr WHERE cr.registration_number = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "issuer_state",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "issuer_authority",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "document_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "registration_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "date_of_first_registration",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "vehicle_identification_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "vehicle_mass_with_body",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "period_of_validity",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "date_of_registration",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "type_approval_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "power_weight_ratio",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "vechicle_category",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "colour",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "maximum_speed",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "vehicles_owner",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 16,
+        "name": "surname_or_business_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 17,
+        "name": "other_name_or_initials",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 18,
+        "name": "address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 19,
+        "name": "make",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 20,
+        "name": "vehicle_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 21,
+        "name": "commercial_descriptons",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 22,
+        "name": "maximum_technically_laden_mass",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 23,
+        "name": "maximum_laden_mass_of_the_vehicle_in_service",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 24,
+        "name": "maximum_laden_mass_of_the_whole_vehicle_in_service",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 25,
+        "name": "capacity",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 26,
+        "name": "max_net_power",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 27,
+        "name": "fuel_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 28,
+        "name": "number_of_seats",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 29,
+        "name": "nunmber_of_standing_places",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 30,
+        "name": "braked",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 31,
+        "name": "unbraked",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 32,
+        "name": "environmental_category",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "03f1c68992f44bd18bfc90c016bb1171a88d4ff418881f174176fdd49efd2ee6"
+}

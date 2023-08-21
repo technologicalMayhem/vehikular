@@ -23,7 +23,7 @@ pub async fn get_registration(
 ) -> Result<Option<car_registration::Model>, Error> {
     sqlx::query_as!(
         car_registration::Model,
-        "SELECT * FROM car_registration WHERE registration_number = $1",
+        "SELECT * FROM car_registration cr WHERE cr.registration_number = $1",
         reg_num
     )
     .fetch_optional(db)
@@ -50,7 +50,7 @@ pub async fn insert_registration(
 pub async fn get_all_registrations(
     db: &Pool<Postgres>,
 ) -> Result<Vec<car_registration::Model>, Error> {
-    sqlx::query_as!(car_registration::Model, "SELECT * FROM car_registration;")
+    sqlx::query_as!(car_registration::Model, "select * from car_registration")
         .fetch_all(db)
         .await
         .map_err(Error::DbError)
@@ -80,20 +80,17 @@ pub async fn get_registration_with_history_and_notes(
 
     let notes = sqlx::query_as!(
         vehicle_notes::Model,
-        "select vn.*
-        from car_registration cr
-        left join vehicle_notes vn on vn.car_id = cr.id
-        where cr.registration_number = $1",
+        "select * from vehicle_notes vn 
+        where vn.car_id = (select id from car_registration cr where cr.registration_number = $1)",
         reg_num
     )
     .fetch_optional(db)
     .await?;
+
     let history = sqlx::query_as!(
         maintenance_history::Model,
-        "select mh.*
-        from car_registration cr 
-        left join maintenance_history mh ON mh.car_id = cr.id
-        where cr.registration_number = $1",
+        "select * from maintenance_history mh
+        where mh.car_id = (select id from car_registration cr where cr.registration_number = $1)",
         reg_num
     )
     .fetch_all(db)

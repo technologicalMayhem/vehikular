@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into vehicle_notes (car_id, body)\n            values ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "77053f17ad41f9f44bdfa4757c8779ae32a73cd8fe7d1d9535c576a0fea4c320"
+}

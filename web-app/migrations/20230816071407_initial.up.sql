@@ -17,7 +17,7 @@ CREATE TABLE car_registration (
 	vehicles_owner varchar NOT NULL,
 	surname_or_business_name varchar NOT NULL,
 	other_name_or_initials varchar NOT NULL,
-	address varchar NOT NULL,
+	"address" varchar NOT NULL,
 	make varchar NOT NULL,
 	vehicle_type varchar NOT NULL,
 	commercial_descriptons varchar NOT NULL,

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select * from vehicle_notes vn \n        where vn.car_id = (select id from car_registration cr where cr.registration_number = $1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "car_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "body",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5fef194159a5bf50de28141474d35fc36c607072feaec25df2f014a186fba629"
+}

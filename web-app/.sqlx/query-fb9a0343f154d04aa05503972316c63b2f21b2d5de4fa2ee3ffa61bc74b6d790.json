@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update vehicle_notes\n            set body = $1\n            where id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb9a0343f154d04aa05503972316c63b2f21b2d5de4fa2ee3ffa61bc74b6d790"
+}

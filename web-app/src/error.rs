@@ -63,7 +63,7 @@ impl ErrorResponder for Error {
                 Error::RegistrationError(reg) => return reg.response(),
                 _ => Status::InternalServerError,
             },
-            format!("{self:#?}"),
+            format!("{self}"),
         )
     }
 }

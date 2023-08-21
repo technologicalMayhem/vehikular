@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select distinct u.id, u.display_name, u.email, u.password_hash from \"user\" u \n         inner join active_session a on u.id = a.user_id \n         where a.\"token\" = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "display_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "password_hash",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "427e2e808b0327a3878f3055d53f09f36096f0918a0dd3b82bb9324298ef296e"
+}
