@@ -175,6 +175,19 @@ pub async fn create_user(
     display_name: &str,
     password: &str,
 ) -> Result<(), Error> {
+    if sqlx::query_as!(
+        user::Model,
+        "select * from \"user\" u
+        where u.email = $1 or u.display_name = $2
+        limit 1",
+        email,
+        display_name
+    )
+    .fetch_optional(db)
+    .await?.is_some() {
+        return Err(Error::RegistrationError(RegistrationError::AlreadyExists));
+    }
+
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
 
