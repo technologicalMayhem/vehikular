@@ -101,7 +101,7 @@ pub async fn get_registration_with_history_and_notes(
 
 struct UpdateInsertNote {
     car_id: i32,
-    notes_id: Option<i32>,
+    note_id: Option<i32>,
 }
 
 pub async fn update_or_insert_notes(
@@ -111,7 +111,7 @@ pub async fn update_or_insert_notes(
 ) -> Result<(), Error> {
     let Some(query) = sqlx::query_as!(
         UpdateInsertNote,
-        "select cr.id as car_id, vn.id as notes_id 
+        "select cr.id as car_id, vn.id as \"note_id?\"
         from car_registration cr 
         left join vehicle_notes vn on vn.car_id = cr.id 
         where cr.registration_number = $1",
@@ -121,7 +121,7 @@ pub async fn update_or_insert_notes(
     .await? else {
         return Err(Error::RegistrationNotFound(reg_num.to_string()))
     };
-    if let Some(notes_id) = query.notes_id {
+    if let Some(notes_id) = query.note_id {
         // Update
         sqlx::query!(
             "update vehicle_notes
