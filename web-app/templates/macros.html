@@ -11,3 +11,11 @@
 {% macro formatt() %}
 method="post" enctype="multipart/form-data"
 {% endmacro formatt %}
+
+{% macro errors() %}
+{% if errors is defined %}
+<div>
+    {{ errors }}
+</div>
+{% endif %}
+{% endmacro errors %}

@@ -10,6 +10,7 @@ use rocket::{
     response::Redirect,
     Build, Request, Rocket, State,
 };
+use sqlx::Either;
 use sqlx::Pool;
 use sqlx::Postgres;
 
@@ -71,21 +72,25 @@ async fn get(_user: user::Model, renderer: PageRenderer<'_>) -> Result<Webpage, 
 }
 
 #[get("/register")]
-async fn register_get(renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
-    renderer.register().await
+async fn register_get(mut renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
+    renderer.register(None).await
 }
 
 #[post("/register", data = "<form>")]
-async fn register_post(form: Form<RegistrationForm<'_>>, db: &State<Pool<Postgres>>) -> Redirect {
+async fn register_post(
+    form: Form<RegistrationForm<'_>>,
+    db: &State<Pool<Postgres>>,
+    mut renderer: PageRenderer<'_>,
+) -> Either<Redirect, Result<Webpage, Error>> {
     match database::create_user(db, form.email, form.username, form.password).await {
-        Ok(_) => Redirect::to("/"),
-        Err(_) => Redirect::to("/account/register"),
+        Ok(_) => Either::Left(Redirect::to("/")),
+        Err(e) => Either::Right(renderer.register(Some(vec![e.to_string()])).await),
     }
 }
 
 #[get("/login")]
-async fn login_get(renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
-    renderer.login().await
+async fn login_get(mut renderer: PageRenderer<'_>) -> Result<Webpage, Error> {
+    renderer.login(None).await
 }
 
 #[post("/login", data = "<form>")]
@@ -93,9 +98,10 @@ async fn login_post(
     form: Form<LoginForm<'_>>,
     db: &State<Pool<Postgres>>,
     cookies: &CookieJar<'_>,
-) -> Result<Redirect, Error> {
+    mut renderer: PageRenderer<'_>,
+) -> Result<Either<Redirect, Webpage>, Error> {
     let Some(user) = get_user_by_email(db, form.email).await? else {
-        return Err(Error::UserNotFoundEmail(form.email.to_string()))
+        return Ok(Either::Right(renderer.login(Some(vec![Error::LoginFailed.to_string()])).await?))
     };
 
     let argon2 = Argon2::default();
@@ -108,9 +114,13 @@ async fn login_post(
     {
         let token = create_token(db, user.id).await?;
         cookies.add(Cookie::build("LoginToken", token.token).finish());
-        Ok(Redirect::to(uri!("/")))
+        Ok(Either::Left(Redirect::to(uri!("/"))))
     } else {
-        Ok(Redirect::to(uri!("/account/login")))
+        Ok(Either::Right(
+            renderer
+                .login(Some(vec![Error::LoginFailed.to_string()]))
+                .await?,
+        ))
     }
 }
 

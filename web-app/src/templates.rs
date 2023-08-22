@@ -160,11 +160,15 @@ impl<'r> PageRenderer<'r> {
         self.render("vehicle").await
     }
 
-    pub async fn register(&self) -> Result<Webpage, Error> {
+    pub async fn register(&mut self, errors: Option<Vec<String>>) -> Result<Webpage, Error> {
+        self.context.insert("errors", &errors);
+
         self.render("register").await
     }
 
-    pub async fn login(&self) -> Result<Webpage, Error> {
+    pub async fn login(&mut self, errors: Option<Vec<String>>) -> Result<Webpage, Error> {
+        self.context.insert("errors", &errors);
+        
         self.render("login").await
     }
 

@@ -1,6 +1,7 @@
 {% extends "base" %}
 {% block title %}Login{% endblock title %}
 {% block content %}
+{{ macros::errors() }}
 <div>
     <form action="/account/login" {{ macros::formatt() }} >
         {{ macros::input(label="Email", name="email") }}

@@ -28,6 +28,8 @@ pub enum Error {
     UserNotFoundId(i32),
     #[error("No user found with {0} as a email")]
     UserNotFoundEmail(String),
+    #[error("Failed to login. Check your credentials and try again.")]
+    LoginFailed,
     #[error("User is not logged in.")]
     UserNotLoggedIn,
     #[error("Templating error: {0}")]
