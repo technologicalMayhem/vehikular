@@ -10,7 +10,7 @@ use shared::data::Registration;
 use sqlx::{Pool, Postgres};
 use templates::{TemplateFairing, Webpage};
 
-use database as db;
+use database::{self as db, entities::user};
 use db::fairing::DatabaseFairing;
 use error::{Error, RegistrationResult};
 
@@ -20,7 +20,6 @@ mod authentication;
 mod database;
 mod error;
 mod templates;
-mod user;
 
 #[macro_use]
 extern crate rocket;
@@ -64,6 +63,7 @@ struct NewMaintenanceItemForm<'r> {
 
 #[post("/maintenance", data = "<form>")]
 async fn post_maintenance_item(
+    user: user::Model,
     form: Form<NewMaintenanceItemForm<'_>>,
     db: &State<Pool<Postgres>>,
 ) -> Result<Redirect, Error> {
@@ -81,6 +81,7 @@ async fn post_maintenance_item(
             form.subject,
             form.body,
             form.mileage,
+            user.id,
         )
         .await?;
 

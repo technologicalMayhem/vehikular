@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT mh.date_time as \"date_time!\", mh.subject as \"subject!\", mh.body as \"body!\", mh.mileage as \"mileage!\", u.display_name as \"author?\"\n        FROM maintenance_history mh\n        LEFT JOIN \"user\" u ON mh.author_user_id = u.id  \n        WHERE mh.car_id = (SELECT id FROM car_registration cr WHERE cr.registration_number = $1);\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "date_time!",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "body!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "mileage!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "author?",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "af6c84fb7676c7203006517456ad6571d2439a7b58de78149b84a79994a3d716"
+}

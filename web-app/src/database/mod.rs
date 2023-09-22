@@ -89,8 +89,11 @@ pub async fn get_registration_with_history_and_notes(
 
     let history = sqlx::query_as!(
         maintenance_history::Model,
-        "select * from maintenance_history mh
-        where mh.car_id = (select id from car_registration cr where cr.registration_number = $1)",
+        "SELECT mh.date_time as \"date_time!\", mh.subject as \"subject!\", mh.body as \"body!\", mh.mileage as \"mileage!\", u.display_name as \"author?\"
+        FROM maintenance_history mh
+        LEFT JOIN \"user\" u ON mh.author_user_id = u.id  
+        WHERE mh.car_id = (SELECT id FROM car_registration cr WHERE cr.registration_number = $1);
+        ",
         reg_num
     )
     .fetch_all(db)
@@ -154,15 +157,17 @@ pub async fn insert_maintenance_item(
     subject: &str,
     body: &str,
     mileage: i32,
+    author_user_id: i32,
 ) -> Result<(), Error> {
     sqlx::query!(
-        "insert into maintenance_history (car_id, date_time, subject, body, mileage)
-         values ($1, $2, $3, $4, $5)",
+        "insert into maintenance_history (car_id, date_time, subject, body, mileage, author_user_id)
+         values ($1, $2, $3, $4, $5, $6)",
         car_id,
         date_time,
         subject.into(),
         body.into(),
-        mileage
+        mileage,
+        author_user_id
     )
     .execute(db)
     .await?;
@@ -184,7 +189,9 @@ pub async fn create_user(
         display_name
     )
     .fetch_optional(db)
-    .await?.is_some() {
+    .await?
+    .is_some()
+    {
         return Err(Error::RegistrationError(RegistrationError::AlreadyExists));
     }
 

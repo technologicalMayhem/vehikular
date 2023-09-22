@@ -136,7 +136,7 @@ impl<'r> FromRequest<'r> for user::Model {
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let Some(cookie) = req.cookies().get("LoginToken") else {
-            return Outcome::Forward(());
+            return Outcome::Failure((Status::Unauthorized, Error::UserNotLoggedIn));
         };
         let Some(db) = req.rocket().state::<Pool<Postgres>>() else {
             return Outcome::Failure((Status::InternalServerError, Error::DatabaseNotFound))
