@@ -168,7 +168,7 @@ impl<'r> PageRenderer<'r> {
 
     pub async fn login(&mut self, errors: Option<Vec<String>>) -> Result<Webpage, Error> {
         self.context.insert("errors", &errors);
-        
+
         self.render("login").await
     }
 
